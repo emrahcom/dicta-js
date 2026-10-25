@@ -25,6 +25,17 @@ The README and other user documents use simple English: short sentences, common
 words, one idea per sentence. Most readers know English as a second language.
 Specs are internal and not covered by this rule.
 
+## Verification commands
+
+Run them after every change.
+
+- Format and type check: `npm run check`
+- Lint: `npm run lint`
+- Tests: `npm run test`
+- Build: `npm run build`
+
+`npm run format` fixes formatting.
+
 ## Commits
 
 Type prefix (`feat`, `fix`, `refactor`, `test`, `docs`, `chore`), subject only,
