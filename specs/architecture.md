@@ -42,6 +42,8 @@ Importing the module defines `<dicta-input>`.
   a string. How it gets the token is up to the application; usually it calls the
   application's backend, which signs the token (see `contract-protocol.md`,
   Connection). It is called for each new connection, because tokens expire.
+  Without `getToken`, the element connects without a token, for a server with
+  authentication turned off.
 - The element sends a `dicta-text` event with `{ text, input }`, where `input`
   is `text` or `voice`, for each typed submission and each voice final with
   text. Empty finals are not sent.
