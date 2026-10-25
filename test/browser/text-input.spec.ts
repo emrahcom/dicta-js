@@ -60,6 +60,31 @@ test("uses the placeholder as the accessible name", async ({ page }) => {
   await expect(field).toHaveAttribute("placeholder", "Tell me");
 });
 
+test("uses the label as the accessible name, before the placeholder", async ({
+  page,
+}) => {
+  await openPage(
+    page,
+    '<dicta-input label="Command" placeholder="Tell me"></dicta-input>',
+  );
+
+  await expect(page.getByRole("textbox", { name: "Command" })).toBeVisible();
+  await expect(page.getByRole("textbox")).toHaveAttribute(
+    "placeholder",
+    "Tell me",
+  );
+});
+
+test("updates the accessible name when the label changes", async ({ page }) => {
+  await openPage(page, '<dicta-input label="Command"></dicta-input>');
+
+  await page
+    .locator("dicta-input")
+    .evaluate((element) => element.setAttribute("label", "Request"));
+
+  await expect(page.getByRole("textbox", { name: "Request" })).toBeVisible();
+});
+
 test("grows up to 5 lines, then scrolls", async ({ page }) => {
   await openPage(page, "<dicta-input></dicta-input>");
   const field = page.getByRole("textbox");

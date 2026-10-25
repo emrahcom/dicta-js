@@ -21,7 +21,7 @@ const STYLE = `
 `;
 
 export class DictaInput extends HTMLElement {
-  static observedAttributes = ["inputs", "placeholder"];
+  static observedAttributes = ["inputs", "label", "placeholder"];
 
   #field: HTMLTextAreaElement;
 
@@ -51,9 +51,13 @@ export class DictaInput extends HTMLElement {
     const placeholder = this.getAttribute("placeholder");
     if (placeholder) {
       this.#field.placeholder = placeholder;
-      this.#field.setAttribute("aria-label", placeholder);
     } else {
       this.#field.removeAttribute("placeholder");
+    }
+    const name = this.getAttribute("label") || placeholder;
+    if (name) {
+      this.#field.setAttribute("aria-label", name);
+    } else {
       this.#field.removeAttribute("aria-label");
     }
   }
