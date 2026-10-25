@@ -51,3 +51,37 @@ Importing the module defines `<dicta-input>`.
   adds a new line.
 - The text is trimmed. Empty text is not submitted.
 - After a submission the field is cleared, ready for the next one.
+
+## Voice input
+
+Push-to-talk only for now.
+
+- A microphone button, shown when `inputs` includes `voice`. The user holds it
+  while speaking, with the pointer, or with Space or Enter while the button has
+  focus. Releasing it ends the utterance.
+- On each press the element asks for the microphone, so the browser asks for
+  permission the first time. It stops the microphone after each utterance, so
+  the browser's recording indicator is on only while the user talks.
+- Audio is captured at the microphone's own rate and converted in an
+  AudioWorklet to the contract's format: 16 kHz, mono, 16-bit. It is sent in
+  frames of 50 ms. Converting in the element works the same in every supported
+  browser; Firefox cannot open audio processing at a rate other than the
+  microphone's.
+- After the release, audio is captured for another 300 ms, so the last word is
+  not cut, and then `end` is sent.
+- While the user speaks, the interim text is shown in a caption above the text
+  field, so it does not touch text the user has typed. The final is sent as
+  `dicta-text` with `input: "voice"`, and the caption is cleared.
+
+## Connection
+
+- The element opens the WebSocket to `<server>/dicta/v1/listen` on the first
+  press, with a token from `getToken`, and keeps it open for the next
+  utterances.
+- Audio captured before `ready` is kept and sent after it, in the same 50 ms
+  frames.
+- When the connection closes, the next press opens a new one, with a new token.
+  There is no automatic reconnect while the user is not speaking, so no backoff
+  is needed.
+- A close or an error during an utterance ends it: the interim text is cleared
+  and the element shows that voice failed, until the next press.
