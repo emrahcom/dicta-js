@@ -27,8 +27,8 @@ application the resulting text.
 ## First version
 
 - The input element. An input the integrator leaves out is not shown.
-- Voice by push-to-talk: the user holds the microphone button or a key while
-  speaking.
+- Voice by push-to-talk: the user holds the microphone button while speaking, or
+  presses it once to start and once to stop.
 - Interim text while speaking, and the final text delivered to the application.
 - Reconnect after a connection failure, with a new token when needed.
 
