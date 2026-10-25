@@ -33,8 +33,10 @@ Importing the module defines `<dicta-input>`.
 - `server`: the dicta-server URL, for example `wss://example.com`.
 - `inputs`: `text`, `voice` or `text voice`, by default `text voice`. An input
   left out is not shown.
-- `placeholder`: optional text shown in the empty text field, also used as its
-  accessible name.
+- `label`: optional accessible name of the text field. Without it, the
+  placeholder is used.
+- `placeholder`: optional text shown in the empty text field.
+- `voice-mode`: `hold` (the default) or `toggle`, see Voice input.
 - `lang`: optional, passed to the server as the contract's `lang`.
 - `getToken`: an async function the application provides, returning the token as
   a string. How it gets the token is up to the application; usually it calls the
@@ -54,21 +56,25 @@ Importing the module defines `<dicta-input>`.
 
 ## Voice input
 
-Push-to-talk only for now.
+Push-to-talk only for now, in two modes.
 
-- A microphone button, shown when `inputs` includes `voice`. The user holds it
-  while speaking, with the pointer, or with Space or Enter while the button has
-  focus. Releasing it ends the utterance.
-- On each press the element asks for the microphone, so the browser asks for
-  permission the first time. It stops the microphone after each utterance, so
-  the browser's recording indicator is on only while the user talks.
+- A microphone button, shown when `inputs` includes `voice`. It works with the
+  pointer, and with Space or Enter while it has focus.
+- `hold`: the user holds the button while speaking; releasing it ends the
+  utterance.
+- `toggle`: a press starts the utterance and the next press ends it, for users
+  who cannot hold a button or a key.
+- At the start of each utterance the element asks for the microphone, so the
+  browser asks for permission the first time. It stops the microphone after each
+  utterance, so the browser's recording indicator is on only while the user
+  talks.
 - Audio is captured at the microphone's own rate and converted in an
   AudioWorklet to the contract's format: 16 kHz, mono, 16-bit. It is sent in
   frames of 50 ms. Converting in the element works the same in every supported
   browser; Firefox cannot open audio processing at a rate other than the
   microphone's.
-- After the release, audio is captured for another 300 ms, so the last word is
-  not cut, and then `end` is sent.
+- After the user ends the utterance, audio is captured for another 300 ms, so
+  the last word is not cut, and then `end` is sent.
 - While the user speaks, the interim text is shown in a caption above the text
   field, so it does not touch text the user has typed. The final is sent as
   `dicta-text` with `input: "voice"`, and the caption is cleared.
@@ -85,3 +91,19 @@ Push-to-talk only for now.
   is needed.
 - A close or an error during an utterance ends it: the interim text is cleared
   and the element shows that voice failed, until the next press.
+
+## Accessibility
+
+The element meets WCAG 2.2 level AA.
+
+- Everything works by keyboard, with a visible focus indicator.
+- The text field and the microphone button have accessible names. The button has
+  `aria-pressed="true"` while the user speaks.
+- Status changes (listening, voice failed) and each voice final are announced
+  through a status region. Interim text is not announced, because it changes
+  many times a second.
+- The speaking state is not shown by color alone, and all text and icons have
+  enough contrast.
+- Animations are turned off when the user prefers reduced motion.
+- User documents advise integrators to keep text input on, because voice alone
+  excludes users who cannot speak or whose speech is not recognized well.
