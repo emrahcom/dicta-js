@@ -23,14 +23,18 @@ Message formats are in `contract-protocol.md` in `dicta-server`.
 - The element is a custom element, `<dicta-input>`, so it works in any page and
   with any UI framework. Its markup and styles live in a shadow root, so the
   page's styles do not break it.
+- Supported browsers: the current and previous major version of Chromium-based
+  browsers, Firefox and Safari, desktop and mobile.
 
 ## Element
 
 - `server`: the dicta-server URL, for example `wss://example.com`.
 - `inputs`: `text`, `voice` or `text voice`. An input left out is not shown.
 - `lang`: optional, passed to the server as the contract's `lang`.
-- `getToken`: a function set by the application that returns a promise of a
-  token from the application's backend. It is called for each new connection.
+- `getToken`: an async function the application provides, returning the token as
+  a string. How it gets the token is up to the application; usually it calls the
+  application's backend, which signs the token (see `contract-protocol.md`,
+  Connection). It is called for each new connection, because tokens expire.
 - The element sends a `dicta-text` event with `{ text, input }`, where `input`
   is `text` or `voice`, for each typed submission and each voice final with
   text. Empty finals are not sent.
