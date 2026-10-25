@@ -183,3 +183,62 @@ test("shows the button only when inputs includes voice", async ({ page }) => {
   await expect(page.locator("#voice").getByRole("button")).toBeVisible();
   await expect(page.locator("#text").getByRole("button")).toBeHidden();
 });
+
+test("shows Listening while speaking and the final after it", async ({
+  page,
+}) => {
+  const button = await open(page, 'voice-mode="toggle"');
+  const status = page.locator("dicta-input .status");
+  await expect(status).toHaveAttribute("role", "status");
+
+  await button.click();
+  await expect(page.getByRole("status")).toHaveText("Listening");
+  await untilFrames(1);
+  await button.click();
+  await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
+  await expect(status).toHaveText("");
+  transcript("add a note", true);
+
+  await expect(page.getByRole("status")).toHaveText("add a note");
+});
+
+test("shows Voice failed after a close during an utterance", async ({
+  page,
+}) => {
+  const button = await open(page, 'voice-mode="toggle"');
+  await button.click();
+  await untilFrames(1);
+
+  server.connections[0]!.socket.close(1011);
+  await expect(page.getByRole("status")).toHaveText("Voice failed");
+  await button.click();
+
+  await expect(page.getByRole("status")).toHaveText("Listening");
+});
+
+test("shows Voice failed when the microphone is denied", async ({ page }) => {
+  const button = await open(page, 'voice-mode="toggle"');
+  await page.evaluate(() => {
+    navigator.mediaDevices.getUserMedia = () =>
+      Promise.reject(new DOMException("denied", "NotAllowedError"));
+  });
+
+  await button.click();
+
+  await expect(page.getByRole("status")).toHaveText("Voice failed");
+  await expect(button).toHaveAttribute("aria-pressed", "false");
+});
+
+test("shows a focus outline on the field and the button", async ({ page }) => {
+  await open(page);
+  const outline = () =>
+    page.evaluate(() => {
+      const root = document.querySelector("dicta-input")!.shadowRoot!;
+      return getComputedStyle(root.activeElement!).outlineStyle;
+    });
+
+  await page.keyboard.press("Tab");
+  expect(await outline()).toBe("solid");
+  await page.keyboard.press("Tab");
+  expect(await outline()).toBe("solid");
+});

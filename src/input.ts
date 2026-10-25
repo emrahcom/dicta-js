@@ -11,8 +11,14 @@ const STYLE = `
   :host {
     display: block;
   }
-  .caption:empty {
+  .caption:empty,
+  .status:empty {
     display: none;
+  }
+  textarea:focus-visible,
+  button:focus-visible {
+    outline: 2px solid #1a5fb4;
+    outline-offset: 2px;
   }
   .row {
     display: flex;
@@ -49,6 +55,8 @@ export class DictaInput extends HTMLElement {
   getToken: (() => Promise<string>) | undefined;
 
   #caption: HTMLDivElement;
+  // Announced by screen readers: listening, each voice final, failures.
+  #status: HTMLDivElement;
   #field: HTMLTextAreaElement;
   #button: HTMLButtonElement;
   #connection: Connection | undefined;
@@ -64,6 +72,9 @@ export class DictaInput extends HTMLElement {
     style.textContent = STYLE;
     this.#caption = document.createElement("div");
     this.#caption.className = "caption";
+    this.#status = document.createElement("div");
+    this.#status.className = "status";
+    this.#status.setAttribute("role", "status");
     this.#field = document.createElement("textarea");
     this.#field.rows = 1;
     this.#field.addEventListener("keydown", (event) => this.#onFieldKey(event));
@@ -96,7 +107,7 @@ export class DictaInput extends HTMLElement {
     const row = document.createElement("div");
     row.className = "row";
     row.append(this.#field, this.#button);
-    root.append(style, this.#caption, row);
+    root.append(style, this.#caption, row, this.#status);
   }
 
   connectedCallback() {
@@ -188,6 +199,7 @@ export class DictaInput extends HTMLElement {
     }
     this.#speaking = true;
     this.#button.setAttribute("aria-pressed", "true");
+    this.#status.textContent = "Listening";
     if (!this.#connection || this.#connection.closed) {
       this.#connection = new Connection(
         {
@@ -221,6 +233,9 @@ export class DictaInput extends HTMLElement {
     try {
       await (await capture)?.stop();
       connection?.end();
+      if (this.#status.textContent === "Listening") {
+        this.#status.textContent = "";
+      }
     } catch {
       // The microphone failed; #onClose has already cleaned up.
     }
@@ -237,12 +252,19 @@ export class DictaInput extends HTMLElement {
     }
     this.#caption.textContent = "";
     if (text) {
+      // "Listening" stays while the user already speaks the next utterance.
+      if (!this.#speaking) {
+        this.#status.textContent = text;
+      }
       this.#sendText(text, "voice");
     }
   }
 
   // The connection closed or the microphone failed: the utterance is over.
   #onClose() {
+    if (this.#speaking || this.#ending) {
+      this.#status.textContent = "Voice failed";
+    }
     this.#stopCapture();
     this.#speaking = false;
     this.#button.setAttribute("aria-pressed", "false");
