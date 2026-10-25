@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>dicta-js example</title>
+    <style>
+      body {
+        max-width: 40rem;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        font-family: system-ui, sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>dicta-js example</h1>
+    <p>
+      Open with <code>?server=wss://your-dicta-server</code>, and optionally
+      <code>&amp;voice-mode=toggle</code> or <code>&amp;lang=de</code>.
+    </p>
+    <dicta-input label="Command" placeholder="Type or hold the microphone">
+    </dicta-input>
+    <h2>Events</h2>
+    <ol id="events"></ol>
+    <script type="module">
+      import "/dist/index.js";
+
+      const input = document.querySelector("dicta-input");
+      const params = new URLSearchParams(location.search);
+      for (const name of ["server", "voice-mode", "lang", "inputs"]) {
+        if (params.has(name)) {
+          input.setAttribute(name, params.get(name));
+        }
+      }
+      input.addEventListener("dicta-text", (event) => {
+        const item = document.createElement("li");
+        item.textContent = `${event.detail.input}: ${event.detail.text}`;
+        document.querySelector("#events").append(item);
+      });
+    </script>
+  </body>
+</html>
