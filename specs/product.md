@@ -10,9 +10,9 @@ application the resulting text.
 ## What it is
 
 - A browser library with one input element: a text field and a microphone
-  button. The integrator enables keyboard input, voice input or both.
+  button. The integrator chooses the inputs: text, voice or both.
 - Voice input streams the microphone audio to `dicta-server` and shows the
-  interim text in the field while the user speaks.
+  interim text while the user speaks.
 - The application gets the user's text the same way for both inputs: a typed
   submission or a voice final.
 - Independent of UI frameworks: it works in any web page.
@@ -26,12 +26,13 @@ application the resulting text.
 
 ## First version
 
-- The input element, with keyboard and voice input configurable.
+- The input element. An input the integrator leaves out is not shown.
 - Voice by push-to-talk: the user holds the microphone button or a key while
   speaking.
 - Interim text while speaking, and the final text delivered to the application.
 - Reconnect after a connection failure, with a new token when needed.
 
-Later, dicta-js may add hands-free voice input (voice activity detection) and
-pass the application's actions and context to the server, so the text becomes an
+Later, dicta-js may add hands-free voice input (voice activity detection), let
+users choose among the inputs and voice modes the integrator allows, and pass
+the application's actions and context to the server, so the text becomes an
 action instead of plain text.
