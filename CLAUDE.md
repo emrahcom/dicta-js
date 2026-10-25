@@ -11,9 +11,10 @@ TypeScript, running in the browser.
 
 - `specs/` is authoritative; code follows it. Specs are living documents: write
   only what the next task needs and update them whenever needed.
-- The protocol between `dicta-js` and the server is
-  `dicta-server/specs/contract-protocol.md`, the source of truth for both repos.
-  It is not copied here.
+- The protocol between `dicta-js` and the server is `specs/contract-protocol.md`
+  in `dicta-server`, the source of truth for both repos. It is not copied here.
+  Locally it is at `../dicta-server/specs/contract-protocol.md`, otherwise
+  https://github.com/emrahcom/dicta-server/blob/main/specs/contract-protocol.md
 - Tasks are files in `tasks/open/` and `tasks/done/`, named
   `YYYY-MM-DD-HHMMSS-slug.md` (UTC). The folder is the status. `specs/tasks.md`
   defines the format, including how findings are handled.
