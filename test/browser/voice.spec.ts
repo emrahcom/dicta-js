@@ -281,7 +281,7 @@ test("shows Voice failed after a close during an utterance", async ({
 test("shows Voice failed when the microphone is denied", async ({ page }) => {
   const button = await open(page, 'voice-listen-modes="toggle"');
   await page.evaluate(() => {
-    navigator.mediaDevices.getUserMedia = () =>
+    MediaDevices.prototype.getUserMedia = () =>
       Promise.reject(new DOMException("denied", "NotAllowedError"));
   });
 
@@ -445,7 +445,7 @@ test("toggle: the session ends after 5 minutes without speech", async ({
   const button = await open(page, 'voice-listen-modes="toggle"');
   // A silent microphone instead of the fake one, so nothing is speech.
   await page.evaluate(() => {
-    navigator.mediaDevices.getUserMedia = async () =>
+    MediaDevices.prototype.getUserMedia = async () =>
       new AudioContext().createMediaStreamDestination().stream;
   });
   await countAudioStarts(page);
@@ -812,7 +812,7 @@ async function openIdle(page: Page) {
   await page.clock.install();
   const button = await open(page, 'voice-listen-modes="toggle"');
   await page.evaluate(() => {
-    navigator.mediaDevices.getUserMedia = async () =>
+    MediaDevices.prototype.getUserMedia = async () =>
       new AudioContext().createMediaStreamDestination().stream;
   });
   await countAudioStarts(page);
@@ -1034,7 +1034,7 @@ test("fails when audio processing does not start in 5 seconds", async ({
         return page.stuck ? new Promise<void>(() => {}) : super.resume();
       }
     };
-    navigator.mediaDevices.getUserMedia = async (constraints) => {
+    MediaDevices.prototype.getUserMedia = async (constraints) => {
       const stream = await real(constraints);
       page.streams.push(stream);
       return stream;

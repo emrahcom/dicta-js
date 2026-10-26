@@ -26,11 +26,12 @@ export function events(page: Page) {
 
 // The same fake microphone in every browser, made in the page: a 300 Hz tone,
 // 1 s on as speech and 2 s off as silence, in a loop. The steps are scheduled
-// on the AudioContext clock, so a fake page clock does not stop them. Tests may
-// still replace getUserMedia themselves.
+// on the AudioContext clock, so a fake page clock does not stop them. It is set
+// on the prototype, since WebKit drops one set on navigator.mediaDevices after
+// the first capture; tests that replace getUserMedia themselves do the same.
 function fakeMicrophone() {
   const CYCLES = 200; // 10 minutes
-  navigator.mediaDevices.getUserMedia = async () => {
+  MediaDevices.prototype.getUserMedia = async () => {
     const context = new AudioContext();
     void context.resume();
     const tone = context.createOscillator();

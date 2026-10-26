@@ -13,7 +13,7 @@ async function startFromClick(page: Page) {
     const getUserMedia = navigator.mediaDevices.getUserMedia.bind(
       navigator.mediaDevices,
     );
-    navigator.mediaDevices.getUserMedia = async (constraints) => {
+    MediaDevices.prototype.getUserMedia = async (constraints) => {
       const stream = await getUserMedia(constraints);
       tracks.push(...stream.getTracks());
       return stream;
@@ -62,7 +62,7 @@ test("rejects when the microphone is denied", async ({ page }) => {
   await openPage(page, "");
 
   const error = await page.evaluate(async () => {
-    navigator.mediaDevices.getUserMedia = () =>
+    MediaDevices.prototype.getUserMedia = () =>
       Promise.reject(new DOMException("denied", "NotAllowedError"));
     const { startCapture } = await import("/dist/audio/capture.js" as string);
     try {
