@@ -1115,3 +1115,21 @@ test("keeps a getToken set before the element is defined", async ({ page }) => {
     .poll(() => server.connections[0]?.protocols)
     .toBe("dicta, before");
 });
+
+test("shortcut: names it in the tooltip only with the text field", async ({
+  page,
+}) => {
+  await openPage(
+    page,
+    `<dicta-input id="both"></dicta-input>
+     <dicta-input id="voice" inputs="voice"></dicta-input>`,
+  );
+  const speak = (id: string) =>
+    page.locator(`#${id}`).getByRole("button", { name: "Speak" });
+
+  await expect(speak("both")).toHaveAttribute(
+    "title",
+    "Speak (Ctrl+Shift+Space)",
+  );
+  await expect(speak("voice")).toHaveAttribute("title", "Speak");
+});

@@ -197,7 +197,6 @@ export class DictaInput extends HTMLElement {
     this.#button.className = "microphone";
     this.#button.innerHTML = MICROPHONE_ICON;
     this.#button.setAttribute("aria-label", "Speak");
-    this.#button.title = "Speak (Ctrl+Shift+Space)";
     this.#button.setAttribute("aria-pressed", "false");
     keepFocus(this.#button);
     this.#button.addEventListener("pointerdown", (event) => {
@@ -283,10 +282,13 @@ export class DictaInput extends HTMLElement {
     this.#field.hidden = !inputs.includes("text");
     this.#button.hidden = !inputs.includes("voice");
     this.#sendButton.hidden = this.#field.hidden;
-    if (this.#button.hidden) {
+    // The shortcut works in the text field, so only with both inputs.
+    if (this.#field.hidden || this.#button.hidden) {
       this.#field.removeAttribute("aria-keyshortcuts");
+      this.#button.title = "Speak";
     } else {
       this.#field.setAttribute("aria-keyshortcuts", SHORTCUT);
+      this.#button.title = "Speak (Ctrl+Shift+Space)";
     }
     this.#settings.render({
       listenModes: this.getAttribute("voice-listen-modes"),
