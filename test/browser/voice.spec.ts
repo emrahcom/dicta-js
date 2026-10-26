@@ -432,7 +432,7 @@ test("toggle: the session ends after 5 minutes without speech", async ({
 
 test("disables the mode switches while listening", async ({ page }) => {
   const button = await open(page);
-  const modes = page.getByRole("combobox", { name: "Voice mode" });
+  const modes = page.getByRole("combobox", { name: "Listen mode" });
   const review = page.getByRole("checkbox", { name: "Review before sending" });
 
   await button.hover();
@@ -448,7 +448,7 @@ test("disables the mode switches while listening", async ({ page }) => {
 test("uses the mode the user picks", async ({ page }) => {
   const button = await open(page);
   await page
-    .getByRole("combobox", { name: "Voice mode" })
+    .getByRole("combobox", { name: "Listen mode" })
     .selectOption("Hands-free");
 
   // A click starts a session instead of a short hold.

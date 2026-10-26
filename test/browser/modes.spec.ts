@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { openPage } from "./page.ts";
 
-const SWITCH = { name: "Voice mode" };
+const SWITCH = { name: "Listen mode" };
 
 test("allows both modes by default, hold first", async ({ page }) => {
   await openPage(page, "<dicta-input></dicta-input>");

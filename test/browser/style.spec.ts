@@ -19,7 +19,7 @@ test("lets the page style the field, the button and the mode switch", async ({
     "color",
     "rgb(0, 128, 0)",
   );
-  await expect(page.getByRole("combobox", { name: "Voice mode" })).toHaveCSS(
+  await expect(page.getByRole("combobox", { name: "Listen mode" })).toHaveCSS(
     "color",
     "rgb(0, 0, 255)",
   );

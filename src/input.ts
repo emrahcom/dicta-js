@@ -277,7 +277,7 @@ export class DictaInput extends HTMLElement {
     row.className = "row";
     this.#listenModeSelect = document.createElement("select");
     this.#listenModeSelect.part.add("voice-listen-mode");
-    this.#listenModeSelect.setAttribute("aria-label", "Voice mode");
+    this.#listenModeSelect.setAttribute("aria-label", "Listen mode");
     for (const mode of LISTEN_MODES) {
       this.#listenModeSelect.append(new Option(LISTEN_MODE_NAMES[mode], mode));
     }
