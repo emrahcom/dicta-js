@@ -1133,3 +1133,44 @@ test("shortcut: names it in the tooltip only with the text field", async ({
   );
   await expect(speak("voice")).toHaveAttribute("title", "Speak");
 });
+
+test("keeps a toggle press made while a hold utterance ends", async ({
+  page,
+}) => {
+  const button = await open(page);
+  await button.hover();
+  await page.mouse.down();
+  await untilFrames(5);
+  await page.mouse.up();
+
+  // A click alone, as from a screen reader, during the 300 ms post-roll.
+  await button.evaluate((element: HTMLElement) => element.click());
+
+  await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+  // A toggle session: the fake microphone's silence ends the next utterance,
+  // and the session goes on.
+  await expect
+    .poll(() => server.connections[0]!.ends.length, { timeout: 10_000 })
+    .toBe(2);
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+});
+
+test("starts again after a close during the end of a hold utterance", async ({
+  page,
+}) => {
+  const button = await open(page);
+  await button.hover();
+  await page.mouse.down();
+  await untilFrames(5);
+  await page.mouse.up();
+
+  // Within the 300 ms post-roll: the server closes, then the user presses.
+  server.connections[0]!.socket.close(1011);
+  await expect(page.getByRole("status")).toHaveText("Voice failed");
+  await button.evaluate((element: HTMLElement) => element.click());
+
+  await expect(page.getByRole("status")).toHaveText("Listening");
+  await expect.poll(() => server.connections.length).toBe(2);
+  await expect.poll(() => server.connections[1]!.frames).toBeGreaterThan(0);
+});
