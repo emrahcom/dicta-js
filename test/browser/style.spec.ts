@@ -35,9 +35,42 @@ test("lets the page style a part's pseudo-class", async ({ page }) => {
   );
   const button = page.getByRole("button", { name: "Speak" });
 
-  await page.keyboard.press("Tab");
-  await page.keyboard.press("Tab");
+  // The field, the Send button, then the microphone button.
+  for (let i = 0; i < 3; i++) {
+    await page.keyboard.press("Tab");
+  }
 
   await expect(button).toBeFocused();
   await expect(button).toHaveCSS("outline-color", "rgb(0, 128, 0)");
+});
+
+test("puts the Send button right after the text field", async ({ page }) => {
+  await openPage(page, "<dicta-input></dicta-input>");
+  const left = (locator: ReturnType<typeof page.getByRole>) =>
+    locator.evaluate((element) => element.getBoundingClientRect().left);
+
+  const field = await left(page.getByRole("textbox"));
+  const send = await left(page.getByRole("button", { name: "Send" }));
+  const speak = await left(page.getByRole("button", { name: "Speak" }));
+  const mode = await left(page.getByRole("combobox", { name: "Listen mode" }));
+
+  expect(field < send && send < speak && speak < mode).toBe(true);
+});
+
+test("follows the row in the tab order", async ({ page }) => {
+  await openPage(page, '<dicta-input label="Command"></dicta-input>');
+  const order: (string | null)[] = [];
+
+  for (let i = 0; i < 4; i++) {
+    await page.keyboard.press("Tab");
+    order.push(
+      await page.evaluate(
+        () =>
+          document.querySelector("dicta-input")!.shadowRoot!.activeElement!
+            .ariaLabel,
+      ),
+    );
+  }
+
+  expect(order).toEqual(["Command", "Send", "Speak", "Listen mode"]);
 });

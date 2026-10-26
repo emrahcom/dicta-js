@@ -296,8 +296,8 @@ export class DictaInput extends HTMLElement {
     this.#submitModeSwitch.append(this.#reviewBox, " Review before sending");
     row.append(
       this.#field,
-      this.#button,
       this.#sendButton,
+      this.#button,
       this.#listenModeSelect,
     );
     root.append(
