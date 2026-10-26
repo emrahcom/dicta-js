@@ -17,7 +17,7 @@
     <h1>dicta-js example</h1>
     <p>
       Open with <code>?server=wss://your-dicta-server</code>, and optionally
-      <code>&amp;voice-mode=toggle</code> or <code>&amp;lang=de</code>.
+      <code>&amp;voice-modes=toggle</code> or <code>&amp;lang=de</code>.
     </p>
     <dicta-input label="Command" placeholder="Type or hold the microphone">
     </dicta-input>
@@ -28,7 +28,7 @@
 
       const input = document.querySelector("dicta-input");
       const params = new URLSearchParams(location.search);
-      for (const name of ["server", "voice-mode", "lang", "inputs"]) {
+      for (const name of ["server", "voice-modes", "lang", "inputs"]) {
         if (params.has(name)) {
           input.setAttribute(name, params.get(name));
         }

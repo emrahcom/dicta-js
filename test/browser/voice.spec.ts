@@ -108,7 +108,7 @@ test("hold: works with Space held on the focused button", async ({ page }) => {
 });
 
 test("toggle: a press starts and the next press ends", async ({ page }) => {
-  const button = await open(page, 'voice-mode="toggle"');
+  const button = await open(page, 'voice-modes="toggle"');
 
   await button.click();
   await expect(button).toHaveAttribute("aria-pressed", "true");
@@ -122,7 +122,7 @@ test("toggle: a press starts and the next press ends", async ({ page }) => {
 test("shows interim text and sends finals with text as voice events", async ({
   page,
 }) => {
-  const button = await open(page, 'voice-mode="toggle"');
+  const button = await open(page, 'voice-modes="toggle"');
   const caption = page.locator("dicta-input .caption");
   await button.click();
   await untilFrames(1);
@@ -144,7 +144,7 @@ test("shows interim text and sends finals with text as voice events", async ({
 test("opens a new connection on the next press after a close", async ({
   page,
 }) => {
-  const button = await open(page, 'voice-mode="toggle"');
+  const button = await open(page, 'voice-modes="toggle"');
   await button.click();
   await untilFrames(1);
   await button.click();
@@ -161,7 +161,7 @@ test("opens a new connection on the next press after a close", async ({
 test("stops and clears the caption when the connection closes", async ({
   page,
 }) => {
-  const button = await open(page, 'voice-mode="toggle"');
+  const button = await open(page, 'voice-modes="toggle"');
   await button.click();
   await untilFrames(1);
   transcript("add a", false);
@@ -187,7 +187,7 @@ test("shows the button only when inputs includes voice", async ({ page }) => {
 test("shows Listening while speaking and the final after it", async ({
   page,
 }) => {
-  const button = await open(page, 'voice-mode="toggle"');
+  const button = await open(page, 'voice-modes="toggle"');
   const status = page.locator("dicta-input .status");
   await expect(status).toHaveAttribute("role", "status");
 
@@ -205,7 +205,7 @@ test("shows Listening while speaking and the final after it", async ({
 test("shows Voice failed after a close during an utterance", async ({
   page,
 }) => {
-  const button = await open(page, 'voice-mode="toggle"');
+  const button = await open(page, 'voice-modes="toggle"');
   await button.click();
   await untilFrames(1);
 
@@ -217,7 +217,7 @@ test("shows Voice failed after a close during an utterance", async ({
 });
 
 test("shows Voice failed when the microphone is denied", async ({ page }) => {
-  const button = await open(page, 'voice-mode="toggle"');
+  const button = await open(page, 'voice-modes="toggle"');
   await page.evaluate(() => {
     navigator.mediaDevices.getUserMedia = () =>
       Promise.reject(new DOMException("denied", "NotAllowedError"));
@@ -249,7 +249,7 @@ test("shows a focus outline on the field and the button", async ({ page }) => {
 test("toggle: ends each utterance on silence and sends no pauses", async ({
   page,
 }) => {
-  const button = await open(page, 'voice-mode="toggle"');
+  const button = await open(page, 'voice-modes="toggle"');
 
   await button.click();
   const started = Date.now();
@@ -268,7 +268,7 @@ test("toggle: ends each utterance on silence and sends no pauses", async ({
 });
 
 test("toggle: a press during speech ends that utterance", async ({ page }) => {
-  const button = await open(page, 'voice-mode="toggle"');
+  const button = await open(page, 'voice-modes="toggle"');
 
   await button.click();
   await untilFrames(3);
@@ -282,7 +282,7 @@ test("toggle: a press during speech ends that utterance", async ({ page }) => {
 });
 
 test("toggle: a press during a pause only stops", async ({ page }) => {
-  const button = await open(page, 'voice-mode="toggle"');
+  const button = await open(page, 'voice-modes="toggle"');
 
   await button.click();
   await expect.poll(() => server.connections[0]?.ends.length ?? 0).toBe(1);
@@ -299,7 +299,7 @@ test("toggle: the session ends after 5 minutes without speech", async ({
   page,
 }) => {
   await page.clock.install();
-  const button = await open(page, 'voice-mode="toggle"');
+  const button = await open(page, 'voice-modes="toggle"');
   // A silent microphone instead of the fake one, so nothing is speech.
   await page.evaluate(() => {
     navigator.mediaDevices.getUserMedia = async () =>
@@ -314,4 +314,31 @@ test("toggle: the session ends after 5 minutes without speech", async ({
 
   await expect(button).toHaveAttribute("aria-pressed", "false");
   await expect(page.locator("dicta-input .status")).toHaveText("");
+});
+
+test("disables the mode switch while listening", async ({ page }) => {
+  const button = await open(page);
+  const modes = page.getByRole("combobox", { name: "Voice mode" });
+
+  await button.hover();
+  await page.mouse.down();
+  await expect(modes).toBeDisabled();
+  await page.mouse.up();
+
+  await expect(modes).toBeEnabled();
+});
+
+test("uses the mode the user picks", async ({ page }) => {
+  const button = await open(page);
+  await page
+    .getByRole("combobox", { name: "Voice mode" })
+    .selectOption("Hands-free");
+
+  // A click starts a session instead of a short hold.
+  await button.click();
+  await untilFrames(3);
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+  await button.click();
+
+  await expect(button).toHaveAttribute("aria-pressed", "false");
 });

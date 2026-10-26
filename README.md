@@ -57,15 +57,23 @@ The event detail has two fields:
 
 - `server`: the address of your dicta-server.
 - `inputs`: `text`, `voice` or `text voice`. The default is `text voice`.
-- `voice-mode`: `hold` or `toggle`. With `hold`, the user holds the button while
-  speaking. With `toggle`, the user presses once to start and once to stop. The
-  default is `hold`.
+- `voice-modes`: the voice modes the user may choose. The first one is used
+  until the user chooses. Without this attribute, it is `hold toggle`.
+  - `hold`: the user holds the button while speaking.
+  - `toggle`: the user presses once to start and once to stop. In between, the
+    user can say many things. A pause of about one second ends each one. It also
+    stops by itself after 5 minutes of silence.
+
+  With two modes, the user can switch between them next to the button. The
+  browser remembers the choice.
+
 - `label`: the name of the text field for screen readers.
 - `placeholder`: the hint in the empty text field.
 - `lang`: the language the user speaks, for example `de` or `en-US`.
 
 We advise you to keep text input on. Some users cannot speak, and some voices
-are not recognized well.
+are not recognized well. We also advise you to allow `toggle`. Some users cannot
+hold a button.
 
 ## Token
 

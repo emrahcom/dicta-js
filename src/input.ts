@@ -5,6 +5,15 @@ import { VoiceDetector } from "./audio/detector.ts";
 import { Connection, type Transcript } from "./connection.ts";
 
 const DEFAULT_INPUTS = "text voice";
+const VOICE_MODES = ["hold", "toggle"] as const;
+type VoiceMode = (typeof VOICE_MODES)[number];
+const DEFAULT_VOICE_MODES = "hold toggle";
+const MODE_NAMES: Record<VoiceMode, string> = {
+  hold: "Hold to talk",
+  toggle: "Hands-free",
+};
+// The user's choice of voice mode, kept in the browser.
+const MODE_STORAGE_KEY = "dicta-voice-mode";
 // Audio captured after the user ends an utterance, so the last word is not cut.
 const POST_ROLL_MS = 300;
 // A toggle session without speech for this long ends by itself.
@@ -52,7 +61,7 @@ const MICROPHONE_ICON = `<svg viewBox="0 0 24 24" width="24" height="24"
   7 0 0 0 19 11h-2z"/></svg>`;
 
 export class DictaInput extends HTMLElement {
-  static observedAttributes = ["inputs", "label", "placeholder"];
+  static observedAttributes = ["inputs", "label", "placeholder", "voice-modes"];
 
   // Set by the application; see specs/architecture.md (Element).
   getToken: (() => Promise<string>) | undefined;
@@ -62,6 +71,9 @@ export class DictaInput extends HTMLElement {
   #status: HTMLDivElement;
   #field: HTMLTextAreaElement;
   #button: HTMLButtonElement;
+  #modeSelect: HTMLSelectElement;
+  // The mode the user chose here, for when storage fails.
+  #chosenMode: string | undefined;
   #connection: Connection | undefined;
   // The capture of the hold utterance or toggle session.
   #capture: Promise<Capture> | undefined;
@@ -114,7 +126,20 @@ export class DictaInput extends HTMLElement {
     });
     const row = document.createElement("div");
     row.className = "row";
-    row.append(this.#field, this.#button);
+    this.#modeSelect = document.createElement("select");
+    this.#modeSelect.setAttribute("aria-label", "Voice mode");
+    for (const mode of VOICE_MODES) {
+      this.#modeSelect.append(new Option(MODE_NAMES[mode], mode));
+    }
+    this.#modeSelect.addEventListener("change", () => {
+      this.#chosenMode = this.#modeSelect.value;
+      try {
+        localStorage.setItem(MODE_STORAGE_KEY, this.#modeSelect.value);
+      } catch {
+        // Without storage, the choice lasts until the page is left.
+      }
+    });
+    row.append(this.#field, this.#button, this.#modeSelect);
     root.append(style, this.#caption, row, this.#status);
   }
 
@@ -137,6 +162,9 @@ export class DictaInput extends HTMLElement {
     const inputs = (this.getAttribute("inputs") ?? DEFAULT_INPUTS).split(/\s+/);
     this.#field.hidden = !inputs.includes("text");
     this.#button.hidden = !inputs.includes("voice");
+    this.#modeSelect.hidden =
+      this.#button.hidden || this.#allowedModes().length < 2;
+    this.#modeSelect.value = this.#mode();
     const placeholder = this.getAttribute("placeholder");
     if (placeholder) {
       this.#field.placeholder = placeholder;
@@ -184,20 +212,46 @@ export class DictaInput extends HTMLElement {
     );
   }
 
-  #toggleMode() {
-    return this.getAttribute("voice-mode") === "toggle";
+  // The modes the integrator allows, the first one the default.
+  #allowedModes(): VoiceMode[] {
+    const words = (
+      this.getAttribute("voice-modes") ?? DEFAULT_VOICE_MODES
+    ).split(/\s+/);
+    const allowed = VOICE_MODES.filter((mode) => words.includes(mode)).sort(
+      (a, b) => words.indexOf(a) - words.indexOf(b),
+    );
+    return allowed.length > 0 ? allowed : ["hold"];
   }
 
+  // The user's choice when it is allowed, otherwise the default.
+  #mode(): VoiceMode {
+    const allowed = this.#allowedModes();
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem(MODE_STORAGE_KEY);
+    } catch {
+      // Storage can fail, as in some private windows.
+    }
+    for (const mode of [this.#chosenMode, stored]) {
+      if (allowed.includes(mode as VoiceMode)) {
+        return mode as VoiceMode;
+      }
+    }
+    return allowed[0]!;
+  }
+
+  // While listening, the mode of the current utterance or session counts: a
+  // toggle session has a detector.
   #press() {
-    if (this.#toggleMode() && this.#listening) {
-      void this.#end();
-    } else {
+    if (!this.#listening) {
       this.#start();
+    } else if (this.#detector) {
+      void this.#end();
     }
   }
 
   #release() {
-    if (!this.#toggleMode()) {
+    if (this.#listening && !this.#detector) {
       void this.#end();
     }
   }
@@ -210,6 +264,7 @@ export class DictaInput extends HTMLElement {
     this.#listening = true;
     this.#heard = undefined;
     this.#button.setAttribute("aria-pressed", "true");
+    this.#modeSelect.disabled = true;
     this.#status.textContent = "Listening";
     if (!this.#connection || this.#connection.closed) {
       this.#connection = new Connection(
@@ -226,7 +281,8 @@ export class DictaInput extends HTMLElement {
     }
     const connection = this.#connection;
     // In toggle, the detector decides what is sent and where utterances end.
-    const detector = this.#toggleMode() ? new VoiceDetector() : undefined;
+    const detector =
+      this.#mode() === "toggle" ? new VoiceDetector() : undefined;
     this.#detector = detector;
     const onFrame = (frame: ArrayBuffer) => {
       if (!detector) {
@@ -261,6 +317,7 @@ export class DictaInput extends HTMLElement {
     this.#listening = false;
     this.#ending = true;
     this.#button.setAttribute("aria-pressed", "false");
+    this.#modeSelect.disabled = false;
     clearTimeout(this.#idleTimer);
     const capture = this.#capture;
     const connection = this.#connection;
@@ -318,6 +375,7 @@ export class DictaInput extends HTMLElement {
     this.#stopCapture();
     this.#listening = false;
     this.#button.setAttribute("aria-pressed", "false");
+    this.#modeSelect.disabled = false;
     this.#caption.textContent = "";
   }
 
