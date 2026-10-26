@@ -197,8 +197,12 @@ export class DictaInput extends HTMLElement {
   #field: HTMLTextAreaElement;
   #button: HTMLButtonElement;
   #sendButton: HTMLButtonElement;
-  // Ctrl+Shift+Space is held down in the text field.
-  #shortcutDown = false;
+  // A key holds the button: Space or Enter on it, or Ctrl+Shift+Space in the
+  // text field.
+  #keyDown = false;
+  // A press while an utterance is ending, started when it is done: whether it
+  // is a toggle press.
+  #pressWhileEnding: boolean | undefined;
   // A pointer press on the button, whose click is then ignored.
   #pointerPressed = false;
   // Opens the voice settings panel.
@@ -251,11 +255,12 @@ export class DictaInput extends HTMLElement {
     this.#field.part.add("field");
     this.#field.addEventListener("keydown", (event) => this.#onFieldKey(event));
     this.#field.addEventListener("keyup", (event) => {
-      if (event.code === "Space" && this.#shortcutDown) {
-        this.#shortcutDown = false;
+      if (event.code === "Space" && this.#keyDown) {
+        this.#keyDown = false;
         this.#release();
       }
     });
+    this.#field.addEventListener("blur", () => this.#releaseKey());
     this.#field.addEventListener("input", () => {
       this.#typed = this.#field.value !== "";
       this.#spoken &&= this.#typed;
@@ -270,6 +275,9 @@ export class DictaInput extends HTMLElement {
     this.#button.setAttribute("aria-pressed", "false");
     keepFocus(this.#button);
     this.#button.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) {
+        return;
+      }
       this.#button.setPointerCapture(event.pointerId);
       this.#pointerPressed = true;
       this.#press();
@@ -292,6 +300,7 @@ export class DictaInput extends HTMLElement {
       if (event.key === " " || event.key === "Enter") {
         event.preventDefault();
         if (!event.repeat) {
+          this.#keyDown = true;
           this.#press();
         }
       }
@@ -299,9 +308,11 @@ export class DictaInput extends HTMLElement {
     this.#button.addEventListener("keyup", (event) => {
       if (event.key === " " || event.key === "Enter") {
         event.preventDefault();
+        this.#keyDown = false;
         this.#release();
       }
     });
+    this.#button.addEventListener("blur", () => this.#releaseKey());
     this.#sendButton = document.createElement("button");
     this.#sendButton.type = "button";
     this.#sendButton.part.add("send");
@@ -374,11 +385,11 @@ export class DictaInput extends HTMLElement {
   }
 
   disconnectedCallback() {
-    clearTimeout(this.#idleTimer);
+    this.#reset();
+    this.#setStatus("");
     clearTimeout(this.#closeTimer);
     this.#connection?.close();
     this.#connection = undefined;
-    this.#stopCapture();
   }
 
   attributeChangedCallback() {
@@ -429,7 +440,7 @@ export class DictaInput extends HTMLElement {
     ) {
       event.preventDefault();
       if (!event.repeat) {
-        this.#shortcutDown = true;
+        this.#keyDown = true;
         this.#press();
       }
       return;
@@ -535,7 +546,9 @@ export class DictaInput extends HTMLElement {
   // While listening, the mode of the current utterance or session counts: a
   // toggle session has a detector.
   #press(toggle = this.#listenMode() === "toggle") {
-    if (!this.#listening) {
+    if (this.#ending) {
+      this.#pressWhileEnding = toggle;
+    } else if (!this.#listening) {
       this.#start(toggle);
     } else if (this.#detector) {
       void this.#end();
@@ -543,8 +556,19 @@ export class DictaInput extends HTMLElement {
   }
 
   #release() {
-    if (this.#listening && !this.#detector) {
+    if (this.#pressWhileEnding === false) {
+      this.#pressWhileEnding = undefined;
+    } else if (this.#listening && !this.#detector) {
       void this.#end();
+    }
+  }
+
+  // The key release may never come once the focus has gone, for example to
+  // another window.
+  #releaseKey() {
+    if (this.#keyDown) {
+      this.#keyDown = false;
+      this.#release();
     }
   }
 
@@ -635,6 +659,11 @@ export class DictaInput extends HTMLElement {
       this.#capture = undefined;
     }
     this.#ending = false;
+    const toggle = this.#pressWhileEnding;
+    this.#pressWhileEnding = undefined;
+    if (toggle !== undefined) {
+      this.#start(toggle);
+    }
   }
 
   // An idle connection holds a speech-to-text session open on the server.
@@ -714,6 +743,13 @@ export class DictaInput extends HTMLElement {
     if (this.#listening || this.#ending) {
       this.#setStatus("Voice failed");
     }
+    this.#reset();
+  }
+
+  // Stops listening and clears what it showed.
+  #reset() {
+    this.#pressWhileEnding = undefined;
+    this.#keyDown = false;
     clearTimeout(this.#idleTimer);
     this.#stopCapture();
     this.#listening = false;

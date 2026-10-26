@@ -857,3 +857,113 @@ test("shows Voice failed when the connection cannot be set up", async ({
   await button.click();
   await expect(page.getByRole("status")).toHaveText("Voice failed");
 });
+
+test("ignores a right click on the button", async ({ page }) => {
+  const button = await open(page);
+
+  await button.click({ button: "right" });
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+  await expect(button).toHaveAttribute("aria-pressed", "false");
+  expect(server.connections).toHaveLength(0);
+
+  // A later click alone still works.
+  await button.evaluate((element: HTMLElement) => element.click());
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+});
+
+test("hold: keeps a quick second press made while the first ends", async ({
+  page,
+}) => {
+  const button = await open(page);
+  await button.hover();
+  await page.mouse.down();
+  await untilFrames(5);
+  await page.mouse.up();
+
+  // Pressed again during the 300 ms post-roll of the first utterance.
+  await page.mouse.down();
+  await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+  const atStart = server.connections[0]!.frames;
+  await expect
+    .poll(() => server.connections[0]!.frames)
+    .toBeGreaterThan(atStart + 3);
+  await page.mouse.up();
+
+  await expect.poll(() => server.connections[0]!.ends.length).toBe(2);
+});
+
+test("hold: drops a quick tap made while the first ends", async ({ page }) => {
+  const button = await open(page);
+  await button.hover();
+  await page.mouse.down();
+  await untilFrames(5);
+  await page.mouse.up();
+
+  await page.mouse.down();
+  await page.mouse.up();
+  await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
+  await page.waitForTimeout(300);
+
+  await expect(button).toHaveAttribute("aria-pressed", "false");
+  expect(server.connections[0]!.ends).toHaveLength(1);
+});
+
+test("hold: ends when the button loses the focus while Space holds it", async ({
+  page,
+}) => {
+  const button = await open(page);
+  await button.focus();
+  await page.keyboard.down(" ");
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+  await untilFrames(3);
+
+  await page.getByRole("textbox").evaluate((field) => field.focus());
+
+  await expect(button).toHaveAttribute("aria-pressed", "false");
+  await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
+  await page.keyboard.up(" ");
+});
+
+test("hold: ends when the field loses the focus during the shortcut", async ({
+  page,
+}) => {
+  const button = await open(page);
+  await page.getByRole("textbox").focus();
+  await page.keyboard.down("Control");
+  await page.keyboard.down("Shift");
+  await page.keyboard.down("Space");
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+  await untilFrames(3);
+
+  await button.evaluate((element: HTMLElement) => element.focus());
+
+  await expect(button).toHaveAttribute("aria-pressed", "false");
+  await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
+  await page.keyboard.up("Space");
+  await page.keyboard.up("Shift");
+  await page.keyboard.up("Control");
+});
+
+test("is ready again after being removed and added while listening", async ({
+  page,
+}) => {
+  const { button, field } = await startReview(page, "hello", 5);
+  transcript("add", false);
+  await expect(field).toHaveJSProperty("readOnly", true);
+
+  await page.locator("dicta-input").evaluate((element) => {
+    element.remove();
+    document.body.append(element);
+  });
+
+  await expect(button).toHaveAttribute("aria-pressed", "false");
+  await expect(field).toHaveValue("hello");
+  await expect(field).toHaveJSProperty("readOnly", false);
+  await expect(page.getByRole("status")).toHaveText("");
+  await expect.poll(() => listening(page)).toBe(false);
+  await button.click();
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => server.connections.length).toBe(2);
+});
