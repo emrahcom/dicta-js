@@ -114,7 +114,9 @@ export class DictaInput extends HTMLElement {
   ];
 
   // Set by the application; see specs/architecture.md (Element).
-  getToken: (() => Promise<string>) | undefined;
+  // Declared only: a class field would wipe a value set before the element was
+  // defined.
+  declare getToken: (() => Promise<string>) | undefined;
 
   // Carries the custom state `listening`, for the page's CSS.
   #internals: ElementInternals;

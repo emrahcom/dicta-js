@@ -15,13 +15,17 @@ const PAGE = `<!doctype html>
 <meta charset="utf-8">
 <script type="module" src="/dist/index.js"></script>
 <body></body>`;
+// The same page without the module, for a test that defines the element later.
+const EMPTY_PAGE = `<!doctype html>
+<meta charset="utf-8">
+<body></body>`;
 
 async function handle(request: IncomingMessage, response: ServerResponse) {
   const { pathname } = new URL(request.url ?? "/", "http://localhost");
   try {
-    if (pathname === "/") {
+    if (pathname === "/" || pathname === "/empty") {
       response.writeHead(200, { "content-type": "text/html" });
-      response.end(PAGE);
+      response.end(pathname === "/" ? PAGE : EMPTY_PAGE);
     } else if (pathname.startsWith("/dist/") && !pathname.includes("..")) {
       const file = await readFile(new URL(pathname.slice(6), DIST));
       response.writeHead(200, { "content-type": "text/javascript" });

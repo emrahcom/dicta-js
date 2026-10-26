@@ -5,6 +5,8 @@ import { events, openPage } from "./page.ts";
 
 type ServerConnection = {
   socket: WebSocket;
+  // The Sec-WebSocket-Protocol header: dicta, then the token if there is one.
+  protocols: string | undefined;
   frames: number;
   // The number of frames received before each `end`.
   ends: number[];
@@ -19,8 +21,13 @@ async function fakeServer() {
   });
   await new Promise((resolve) => server.once("listening", resolve));
   const connections: ServerConnection[] = [];
-  server.on("connection", (socket) => {
-    const connection: ServerConnection = { socket, frames: 0, ends: [] };
+  server.on("connection", (socket, request) => {
+    const connection: ServerConnection = {
+      socket,
+      protocols: request.headers["sec-websocket-protocol"],
+      frames: 0,
+      ends: [],
+    };
     connections.push(connection);
     socket.on("message", (data, isBinary) => {
       if (isBinary) {
@@ -1071,4 +1078,40 @@ test("fails when audio processing does not start in 5 seconds", async ({
   await expect
     .poll(() => server.connections[0]?.frames ?? 0)
     .toBeGreaterThan(0);
+});
+
+test("uses a getToken set after the element is defined", async ({ page }) => {
+  const button = await open(page, 'voice-listen-modes="toggle"');
+  await page.locator("dicta-input").evaluate((element) => {
+    (element as unknown as { getToken: () => Promise<string> }).getToken =
+      async () => "after";
+  });
+
+  await button.click();
+
+  await expect
+    .poll(() => server.connections[0]?.protocols)
+    .toBe("dicta, after");
+});
+
+test("keeps a getToken set before the element is defined", async ({ page }) => {
+  // A page that does not load the module, so the element is defined only after
+  // the page has set getToken.
+  await page.goto("/empty");
+  await page.evaluate(async (url) => {
+    document.body.innerHTML = `<dicta-input server="${url}"
+      voice-listen-modes="toggle"></dicta-input>`;
+    const element = document.querySelector("dicta-input")!;
+    (element as unknown as { getToken: () => Promise<string> }).getToken =
+      async () => "before";
+    const module = "/dist/index.js";
+    await import(module);
+  }, server.url);
+
+  // The connection opens on the press, before the microphone is asked for.
+  await page.getByRole("button", { name: "Speak" }).click();
+
+  await expect
+    .poll(() => server.connections[0]?.protocols)
+    .toBe("dicta, before");
 });
