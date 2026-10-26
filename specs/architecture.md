@@ -38,7 +38,8 @@ Importing `index.js` defines `<dicta-input>`.
 - `inputs`: `text`, `voice` or `text voice`, by default `text voice`. An input
   left out is not shown.
 - `label`: optional accessible name of the text field. Without it, the
-  placeholder is used.
+  placeholder is used, and without both, "Message", so the field always has a
+  name.
 - `placeholder`: optional text shown in the empty text field.
 - `voice-listen-modes`: how the user may start and stop listening, `hold` and
   `toggle`, by default `hold toggle`.
