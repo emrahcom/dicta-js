@@ -164,3 +164,27 @@ test("reaches the Send button by keyboard", async ({ page }) => {
 
   expect(await events(page)).toEqual([{ text: "add a note", input: "text" }]);
 });
+
+test("does not submit on the Enter that ends a composition in Safari", async ({
+  page,
+}) => {
+  await openPage(page, "<dicta-input></dicta-input>");
+  const field = page.getByRole("textbox");
+  await field.fill("nihon");
+
+  // Safari: the Enter that confirms the input method text, with isComposing
+  // false and keyCode 229.
+  await field.evaluate((element) =>
+    element.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        keyCode: 229,
+        bubbles: true,
+        cancelable: true,
+      }),
+    ),
+  );
+
+  expect(await events(page)).toEqual([]);
+  await expect(field).toHaveValue("nihon");
+});

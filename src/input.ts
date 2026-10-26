@@ -455,7 +455,14 @@ export class DictaInput extends HTMLElement {
       return;
     }
     // Enter while an input method is composing text belongs to the composition.
-    if (event.key !== "Enter" || event.shiftKey || event.isComposing) {
+    // Safari sends the Enter that ends it with isComposing false and keyCode
+    // 229.
+    if (
+      event.key !== "Enter" ||
+      event.shiftKey ||
+      event.isComposing ||
+      event.keyCode === 229
+    ) {
       return;
     }
     event.preventDefault();
