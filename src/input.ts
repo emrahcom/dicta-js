@@ -7,6 +7,8 @@ import { Connection, type Transcript } from "./connection.ts";
 import { SETTINGS_STYLE, VoiceSettings } from "./settings.ts";
 
 const DEFAULT_INPUTS = "text voice";
+// The text field's accessible name without label and placeholder.
+const DEFAULT_FIELD_NAME = "Message";
 // Audio captured after the user ends an utterance, so the last word is not cut.
 const POST_ROLL_MS = 300;
 // In the text field, works like the microphone button.
@@ -298,12 +300,10 @@ export class DictaInput extends HTMLElement {
     } else {
       this.#field.removeAttribute("placeholder");
     }
-    const name = this.getAttribute("label") || placeholder;
-    if (name) {
-      this.#field.setAttribute("aria-label", name);
-    } else {
-      this.#field.removeAttribute("aria-label");
-    }
+    this.#field.setAttribute(
+      "aria-label",
+      this.getAttribute("label") || placeholder || DEFAULT_FIELD_NAME,
+    );
   }
 
   #onFieldKey(event: KeyboardEvent) {

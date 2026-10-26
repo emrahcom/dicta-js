@@ -93,7 +93,8 @@ on HTTPS must use `wss://` for the server.
   the voice settings. The browser remembers the choice. Without the text field,
   it is always `auto`.
 
-- `label`: the name of the text field for screen readers.
+- `label`: the name of the text field for screen readers. Without it, the
+  placeholder is used, or "Message" without both.
 - `placeholder`: the hint in the empty text field.
 - `lang`: the language the user speaks, for example `de` or `en-US`.
 

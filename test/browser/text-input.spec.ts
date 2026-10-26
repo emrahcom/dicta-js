@@ -85,6 +85,22 @@ test("updates the accessible name when the label changes", async ({ page }) => {
   await expect(page.getByRole("textbox", { name: "Request" })).toBeVisible();
 });
 
+test("names the field Message without label and placeholder", async ({
+  page,
+}) => {
+  await openPage(
+    page,
+    '<dicta-input label="Command" placeholder="Tell me"></dicta-input>',
+  );
+
+  await page.locator("dicta-input").evaluate((element) => {
+    element.removeAttribute("label");
+    element.removeAttribute("placeholder");
+  });
+
+  await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible();
+});
+
 test("grows up to 5 lines, then scrolls", async ({ page }) => {
   await openPage(page, "<dicta-input></dicta-input>");
   const field = page.getByRole("textbox");
