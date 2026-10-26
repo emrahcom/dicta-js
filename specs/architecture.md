@@ -151,8 +151,10 @@ The element meets WCAG 2.2 level AA.
   through a status region. Interim text is not announced, because it changes
   many times a second. The status region is visually hidden and separate from
   the visible status line, so hiding the `status` part does not silence it.
-- The speaking state is not shown by color alone, and all text and icons have
-  enough contrast.
+- While the element listens, the button looks pressed, shown by more than color,
+  for example a filled background and a thicker border, so the listening state
+  is visible even when the status line is hidden. All text and icons have enough
+  contrast.
 - Animations are turned off when the user prefers reduced motion.
 - User documents advise integrators to keep text input on, because voice alone
   excludes users who cannot speak or whose speech is not recognized well.
