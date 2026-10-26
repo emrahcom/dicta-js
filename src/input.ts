@@ -140,6 +140,8 @@ export class DictaInput extends HTMLElement {
   // Set by the application; see specs/architecture.md (Element).
   getToken: (() => Promise<string>) | undefined;
 
+  // Carries the custom state `listening`, for the page's CSS.
+  #internals: ElementInternals;
   #caption: HTMLDivElement;
   // The visible status line: listening, each voice final, failures.
   #status: HTMLDivElement;
@@ -174,6 +176,7 @@ export class DictaInput extends HTMLElement {
 
   constructor() {
     super();
+    this.#internals = this.attachInternals();
     const root = this.attachShadow({ mode: "open" });
     const style = document.createElement("style");
     style.textContent = STYLE;
@@ -370,9 +373,15 @@ export class DictaInput extends HTMLElement {
   }
 
   // The modes cannot change during an utterance or session.
-  #lockSwitches(locked: boolean) {
-    this.#listenModeSelect.disabled = locked;
-    this.#reviewBox.disabled = locked;
+  #showListening(listening: boolean) {
+    this.#button.setAttribute("aria-pressed", String(listening));
+    if (listening) {
+      this.#internals.states.add("listening");
+    } else {
+      this.#internals.states.delete("listening");
+    }
+    this.#listenModeSelect.disabled = listening;
+    this.#reviewBox.disabled = listening;
   }
 
   // While listening, the mode of the current utterance or session counts: a
@@ -399,8 +408,7 @@ export class DictaInput extends HTMLElement {
     this.#listening = true;
     this.#heard = undefined;
     this.#review = this.#submitMode() === "review";
-    this.#button.setAttribute("aria-pressed", "true");
-    this.#lockSwitches(true);
+    this.#showListening(true);
     this.#setStatus("Listening");
     if (!this.#connection || this.#connection.closed) {
       this.#connection = new Connection(
@@ -452,8 +460,7 @@ export class DictaInput extends HTMLElement {
     }
     this.#listening = false;
     this.#ending = true;
-    this.#button.setAttribute("aria-pressed", "false");
-    this.#lockSwitches(false);
+    this.#showListening(false);
     clearTimeout(this.#idleTimer);
     const capture = this.#capture;
     const connection = this.#connection;
@@ -552,8 +559,7 @@ export class DictaInput extends HTMLElement {
     clearTimeout(this.#idleTimer);
     this.#stopCapture();
     this.#listening = false;
-    this.#button.setAttribute("aria-pressed", "false");
-    this.#lockSwitches(false);
+    this.#showListening(false);
     this.#caption.textContent = "";
     this.#removeInterim();
   }

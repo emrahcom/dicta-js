@@ -116,6 +116,15 @@ dicta-input::part(button):focus-visible {
 }
 ```
 
+While the element listens, it has the state `listening`. This changes the color
+of the button while it listens:
+
+```css
+dicta-input:state(listening)::part(button) {
+  background-color: darkred;
+}
+```
+
 ## Token
 
 dicta-server needs a token for each connection. Your backend makes the token.

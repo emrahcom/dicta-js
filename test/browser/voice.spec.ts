@@ -279,7 +279,7 @@ test("shows a focus outline on the field and the button", async ({ page }) => {
 test("looks pressed while listening, by more than color", async ({ page }) => {
   const button = await open(page, 'voice-listen-modes="toggle"');
   const look = () =>
-    button.evaluate((element) => {
+    button.evaluate((element: HTMLElement) => {
       const style = getComputedStyle(element);
       return {
         background: style.backgroundColor,
@@ -301,6 +301,56 @@ test("looks pressed while listening, by more than color", async ({ page }) => {
   // The size stays the same.
   expect(pressed.width).toBe(idle.width);
   expect(await look()).toEqual(idle);
+});
+
+// Whether the element matches :state(listening).
+function listening(page: Page) {
+  return page
+    .locator("dicta-input")
+    .evaluate((element) => element.matches(":state(listening)"));
+}
+
+test("has the listening state while listening", async ({ page }) => {
+  const button = await open(page, 'voice-listen-modes="toggle"');
+  expect(await listening(page)).toBe(false);
+
+  await button.click();
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+  expect(await listening(page)).toBe(true);
+  await button.click();
+
+  await expect(button).toHaveAttribute("aria-pressed", "false");
+  expect(await listening(page)).toBe(false);
+});
+
+test("loses the listening state after a failure", async ({ page }) => {
+  const button = await open(page, 'voice-listen-modes="toggle"');
+  await button.click();
+  await untilFrames(1);
+  expect(await listening(page)).toBe(true);
+
+  server.connections[0]!.socket.close(1011);
+
+  await expect(button).toHaveAttribute("aria-pressed", "false");
+  expect(await listening(page)).toBe(false);
+});
+
+test("lets the page style the pressed button", async ({ page }) => {
+  await openPage(
+    page,
+    `<style>
+      dicta-input:state(listening)::part(button) {
+        background-color: rgb(255, 0, 0);
+      }
+    </style>
+    <dicta-input server="${server.url}" voice-listen-modes="toggle">
+    </dicta-input>`,
+  );
+  const button = page.getByRole("button", { name: "Speak" });
+
+  await button.click();
+
+  await expect(button).toHaveCSS("background-color", "rgb(255, 0, 0)");
 });
 
 // The fake microphone plays 1 s of tone, then 2 s of silence, in a loop
