@@ -97,6 +97,10 @@ Importing the module defines `<dicta-input>`.
   in `toggle`. Ctrl+Space is not used: macOS and input methods for Chinese,
   Japanese and Korean take it. The field has `aria-keyshortcuts`, and the
   button's tooltip names the shortcut.
+- Screen readers press a button with a `click` event alone, without a pointer or
+  key press before it, so holding is not possible there. Such a click works as a
+  press in `toggle`, whatever the listen mode: the first starts listening with
+  voice activity detection, the next ends it.
 - `hold`: the user holds the button while speaking; releasing it ends the
   utterance.
 - `toggle`: a press starts a listening session and the next press ends it, so
