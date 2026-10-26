@@ -349,16 +349,19 @@ test("toggle: the session ends after 5 minutes without speech", async ({
   await expect(page.getByRole("status")).toHaveText("");
 });
 
-test("disables the mode switch while listening", async ({ page }) => {
+test("disables the mode switches while listening", async ({ page }) => {
   const button = await open(page);
   const modes = page.getByRole("combobox", { name: "Voice mode" });
+  const review = page.getByRole("checkbox", { name: "Review before sending" });
 
   await button.hover();
   await page.mouse.down();
   await expect(modes).toBeDisabled();
+  await expect(review).toBeDisabled();
   await page.mouse.up();
 
   await expect(modes).toBeEnabled();
+  await expect(review).toBeEnabled();
 });
 
 test("uses the mode the user picks", async ({ page }) => {
@@ -511,4 +514,18 @@ test("is always auto without text input", async ({ page }) => {
   await expect
     .poll(() => events(page))
     .toEqual([{ text: "add a note", input: "voice" }]);
+});
+
+test("sends at once when the user turns review off", async ({ page }) => {
+  const button = await open(page, 'voice-listen-modes="toggle"');
+  await page.getByRole("checkbox", { name: "Review before sending" }).uncheck();
+  await button.click();
+  await untilFrames(1);
+
+  transcript("add a note", true);
+
+  await expect
+    .poll(() => events(page))
+    .toEqual([{ text: "add a note", input: "voice" }]);
+  await expect(page.getByRole("textbox")).toHaveValue("");
 });

@@ -17,6 +17,8 @@ const LISTEN_MODE_STORAGE_KEY = "dicta-voice-listen-mode";
 const SUBMIT_MODES = ["review", "auto"] as const;
 type SubmitMode = (typeof SUBMIT_MODES)[number];
 const DEFAULT_SUBMIT_MODES = "review auto";
+// The user's choice of submit mode, kept in the browser.
+const SUBMIT_MODE_STORAGE_KEY = "dicta-voice-submit-mode";
 // Audio captured after the user ends an utterance, so the last word is not cut.
 const POST_ROLL_MS = 300;
 // A toggle session without speech for this long ends by itself.
@@ -77,6 +79,35 @@ function allowedModes<T extends string>(value: string, modes: readonly T[]) {
     .sort((a, b) => words.indexOf(a) - words.indexOf(b));
 }
 
+// The mode the user chose on this page, else the one stored in the browser,
+// when it is allowed; otherwise the first allowed mode.
+function choose<T extends string>(
+  allowed: T[],
+  chosen: string | undefined,
+  key: string,
+): T {
+  let stored: string | null = null;
+  try {
+    stored = localStorage.getItem(key);
+  } catch {
+    // Storage can fail, as in some private windows.
+  }
+  for (const mode of [chosen, stored]) {
+    if (allowed.includes(mode as T)) {
+      return mode as T;
+    }
+  }
+  return allowed[0]!;
+}
+
+function store(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Without storage, the choice lasts until the page is left.
+  }
+}
+
 const MICROPHONE_ICON = `<svg viewBox="0 0 24 24" width="24" height="24"
   aria-hidden="true" fill="currentColor"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0
   0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7
@@ -105,6 +136,9 @@ export class DictaInput extends HTMLElement {
   #listenModeSelect: HTMLSelectElement;
   // The mode the user chose here, for when storage fails.
   #chosenListenMode: string | undefined;
+  #submitModeSwitch: HTMLLabelElement;
+  #reviewBox: HTMLInputElement;
+  #chosenSubmitMode: string | undefined;
   #connection: Connection | undefined;
   // The capture of the hold utterance or toggle session.
   #capture: Promise<Capture> | undefined;
@@ -183,17 +217,26 @@ export class DictaInput extends HTMLElement {
     }
     this.#listenModeSelect.addEventListener("change", () => {
       this.#chosenListenMode = this.#listenModeSelect.value;
-      try {
-        localStorage.setItem(
-          LISTEN_MODE_STORAGE_KEY,
-          this.#listenModeSelect.value,
-        );
-      } catch {
-        // Without storage, the choice lasts until the page is left.
-      }
+      store(LISTEN_MODE_STORAGE_KEY, this.#chosenListenMode);
     });
+    this.#reviewBox = document.createElement("input");
+    this.#reviewBox.type = "checkbox";
+    this.#reviewBox.addEventListener("change", () => {
+      this.#chosenSubmitMode = this.#reviewBox.checked ? "review" : "auto";
+      store(SUBMIT_MODE_STORAGE_KEY, this.#chosenSubmitMode);
+    });
+    this.#submitModeSwitch = document.createElement("label");
+    this.#submitModeSwitch.part.add("voice-submit-mode");
+    this.#submitModeSwitch.append(this.#reviewBox, " Review before sending");
     row.append(this.#field, this.#button, this.#listenModeSelect);
-    root.append(style, this.#caption, row, this.#status, this.#announcer);
+    root.append(
+      style,
+      this.#caption,
+      row,
+      this.#submitModeSwitch,
+      this.#status,
+      this.#announcer,
+    );
   }
 
   connectedCallback() {
@@ -218,6 +261,11 @@ export class DictaInput extends HTMLElement {
     this.#listenModeSelect.hidden =
       this.#button.hidden || this.#allowedListenModes().length < 2;
     this.#listenModeSelect.value = this.#listenMode();
+    this.#submitModeSwitch.hidden =
+      this.#field.hidden ||
+      this.#button.hidden ||
+      this.#allowedSubmitModes().length < 2;
+    this.#reviewBox.checked = this.#submitMode() === "review";
     const placeholder = this.getAttribute("placeholder");
     if (placeholder) {
       this.#field.placeholder = placeholder;
@@ -278,33 +326,38 @@ export class DictaInput extends HTMLElement {
     return allowed.length > 0 ? allowed : ["hold"];
   }
 
+  #allowedSubmitModes(): SubmitMode[] {
+    const allowed = allowedModes(
+      this.getAttribute("voice-submit-modes") ?? DEFAULT_SUBMIT_MODES,
+      SUBMIT_MODES,
+    );
+    return allowed.length > 0 ? allowed : ["review"];
+  }
+
+  #listenMode(): ListenMode {
+    return choose(
+      this.#allowedListenModes(),
+      this.#chosenListenMode,
+      LISTEN_MODE_STORAGE_KEY,
+    );
+  }
+
   // Without text input there is no field to review in.
   #submitMode(): SubmitMode {
     if (this.#field.hidden) {
       return "auto";
     }
-    const allowed = allowedModes(
-      this.getAttribute("voice-submit-modes") ?? DEFAULT_SUBMIT_MODES,
-      SUBMIT_MODES,
+    return choose(
+      this.#allowedSubmitModes(),
+      this.#chosenSubmitMode,
+      SUBMIT_MODE_STORAGE_KEY,
     );
-    return allowed[0] ?? "review";
   }
 
-  // The user's choice when it is allowed, otherwise the default.
-  #listenMode(): ListenMode {
-    const allowed = this.#allowedListenModes();
-    let stored: string | null = null;
-    try {
-      stored = localStorage.getItem(LISTEN_MODE_STORAGE_KEY);
-    } catch {
-      // Storage can fail, as in some private windows.
-    }
-    for (const mode of [this.#chosenListenMode, stored]) {
-      if (allowed.includes(mode as ListenMode)) {
-        return mode as ListenMode;
-      }
-    }
-    return allowed[0]!;
+  // The modes cannot change during an utterance or session.
+  #lockSwitches(locked: boolean) {
+    this.#listenModeSelect.disabled = locked;
+    this.#reviewBox.disabled = locked;
   }
 
   // While listening, the mode of the current utterance or session counts: a
@@ -332,7 +385,7 @@ export class DictaInput extends HTMLElement {
     this.#heard = undefined;
     this.#review = this.#submitMode() === "review";
     this.#button.setAttribute("aria-pressed", "true");
-    this.#listenModeSelect.disabled = true;
+    this.#lockSwitches(true);
     this.#setStatus("Listening");
     if (!this.#connection || this.#connection.closed) {
       this.#connection = new Connection(
@@ -385,7 +438,7 @@ export class DictaInput extends HTMLElement {
     this.#listening = false;
     this.#ending = true;
     this.#button.setAttribute("aria-pressed", "false");
-    this.#listenModeSelect.disabled = false;
+    this.#lockSwitches(false);
     clearTimeout(this.#idleTimer);
     const capture = this.#capture;
     const connection = this.#connection;
@@ -485,7 +538,7 @@ export class DictaInput extends HTMLElement {
     this.#stopCapture();
     this.#listening = false;
     this.#button.setAttribute("aria-pressed", "false");
-    this.#listenModeSelect.disabled = false;
+    this.#lockSwitches(false);
     this.#caption.textContent = "";
     this.#removeInterim();
   }

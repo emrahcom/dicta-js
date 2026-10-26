@@ -69,13 +69,14 @@ The event detail has two fields:
   With two modes, the user can switch between them next to the button. The
   browser remembers the choice.
 
-- `voice-submit-modes`: what happens with the spoken text. The first one is
-  used. Without this attribute, it is `review auto`.
+- `voice-submit-modes`: what happens with the spoken text. The first one is used
+  until the user chooses. Without this attribute, it is `review auto`.
   - `review`: the text goes into the text field, where the user is typing. The
     user can change it and presses Enter to send it.
   - `auto`: the text is sent when the user stops speaking.
 
-  Without the text field, it is always `auto`.
+  With two modes, the user can switch with a "Review before sending" checkbox.
+  The browser remembers the choice. Without the text field, it is always `auto`.
 
 - `label`: the name of the text field for screen readers.
 - `placeholder`: the hint in the empty text field.
@@ -93,6 +94,7 @@ You can style each part of the element with CSS:
 - `field`: the text field.
 - `button`: the microphone button.
 - `voice-listen-mode`: the switch between the listen modes.
+- `voice-submit-mode`: the "Review before sending" checkbox with its label.
 - `status`: the line under the element, for example "Listening".
 
 For example, this hides the status line:
