@@ -1,15 +1,12 @@
 import { expect, test } from "@playwright/test";
 import { openPage } from "./page.ts";
 
-test("lets the page style the field, the button and the mode switch", async ({
-  page,
-}) => {
+test("lets the page style the field and the button", async ({ page }) => {
   await openPage(
     page,
     `<style>
       dicta-input::part(field) { color: rgb(255, 0, 0); }
       dicta-input::part(button) { color: rgb(0, 128, 0); }
-      dicta-input::part(voice-listen-mode) { color: rgb(0, 0, 255); }
     </style>
     <dicta-input></dicta-input>`,
   );
@@ -18,10 +15,6 @@ test("lets the page style the field, the button and the mode switch", async ({
   await expect(page.getByRole("button", { name: "Speak" })).toHaveCSS(
     "color",
     "rgb(0, 128, 0)",
-  );
-  await expect(page.getByRole("combobox", { name: "Listen mode" })).toHaveCSS(
-    "color",
-    "rgb(0, 0, 255)",
   );
 });
 
@@ -52,9 +45,11 @@ test("puts the Send button right after the text field", async ({ page }) => {
   const field = await left(page.getByRole("textbox"));
   const send = await left(page.getByRole("button", { name: "Send" }));
   const speak = await left(page.getByRole("button", { name: "Speak" }));
-  const mode = await left(page.getByRole("combobox", { name: "Listen mode" }));
+  const settings = await left(
+    page.getByRole("button", { name: "Voice settings" }),
+  );
 
-  expect(field < send && send < speak && speak < mode).toBe(true);
+  expect(field < send && send < speak && speak < settings).toBe(true);
 });
 
 test("follows the row in the tab order", async ({ page }) => {
@@ -72,5 +67,5 @@ test("follows the row in the tab order", async ({ page }) => {
     );
   }
 
-  expect(order).toEqual(["Command", "Send", "Speak", "Listen mode"]);
+  expect(order).toEqual(["Command", "Send", "Speak", "Voice settings"]);
 });

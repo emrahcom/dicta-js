@@ -66,8 +66,9 @@ The event detail has two fields:
     user can say many things. A pause of about one second ends each one. It also
     stops by itself after 5 minutes of silence.
 
-  With two modes, the user can switch between them next to the button. The
-  browser remembers the choice.
+  With two modes, the user can switch between them in the voice settings. The
+  small arrow next to the microphone button opens them. The browser remembers
+  the choice.
 
   In the text field, Ctrl+Shift+Space works like the button. The user can speak
   without leaving the field.
@@ -78,8 +79,9 @@ The event detail has two fields:
     user can change it and presses Enter or Send to send it.
   - `auto`: the text is sent when the user stops speaking.
 
-  With two modes, the user can switch with a "Review before sending" checkbox.
-  The browser remembers the choice. Without the text field, it is always `auto`.
+  With two modes, the user can switch with a "Review before sending" checkbox in
+  the voice settings. The browser remembers the choice. Without the text field,
+  it is always `auto`.
 
 - `label`: the name of the text field for screen readers.
 - `placeholder`: the hint in the empty text field.
@@ -97,7 +99,8 @@ You can style each part of the element with CSS:
 - `field`: the text field.
 - `button`: the microphone button.
 - `send`: the Send button.
-- `voice-listen-mode`: the switch between the listen modes.
+- `voice-settings`: the small arrow that opens the voice settings.
+- `voice-listen-mode`: the listen mode choice in the voice settings.
 - `voice-submit-mode`: the "Review before sending" checkbox with its label.
 - `status`: the line under the element, for example "Listening".
 

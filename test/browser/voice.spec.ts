@@ -430,26 +430,37 @@ test("toggle: the session ends after 5 minutes without speech", async ({
   await expect(page.getByRole("status")).toHaveText("");
 });
 
-test("disables the mode switches while listening", async ({ page }) => {
+test("disables the voice settings while listening", async ({ page }) => {
   const button = await open(page);
-  const modes = page.getByRole("combobox", { name: "Listen mode" });
-  const review = page.getByRole("checkbox", { name: "Review before sending" });
+  const settings = page.getByRole("button", { name: "Voice settings" });
 
   await button.hover();
   await page.mouse.down();
-  await expect(modes).toBeDisabled();
-  await expect(review).toBeDisabled();
+  await expect(settings).toBeDisabled();
   await page.mouse.up();
 
-  await expect(modes).toBeEnabled();
-  await expect(review).toBeEnabled();
+  await expect(settings).toBeEnabled();
+});
+
+test("closes the voice settings when listening starts", async ({ page }) => {
+  const button = await open(page, 'voice-listen-modes="toggle"');
+  await page.getByRole("button", { name: "Voice settings" }).click();
+  const review = page.getByRole("checkbox", { name: "Review before sending" });
+  await expect(review).toBeVisible();
+
+  // Focus by code does not close the panel; only the start does.
+  await page.getByRole("textbox").evaluate((field) => field.focus());
+  await page.keyboard.press("Control+Shift+Space");
+
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+  await expect(review).toBeHidden();
 });
 
 test("uses the mode the user picks", async ({ page }) => {
   const button = await open(page);
-  await page
-    .getByRole("combobox", { name: "Listen mode" })
-    .selectOption("Hands-free");
+  await page.getByRole("button", { name: "Voice settings" }).click();
+  await page.getByRole("radio", { name: "Hands-free" }).check();
+  await page.keyboard.press("Escape");
 
   // A click starts a session instead of a short hold.
   await button.click();
@@ -599,7 +610,9 @@ test("is always auto without text input", async ({ page }) => {
 
 test("sends at once when the user turns review off", async ({ page }) => {
   const button = await open(page, 'voice-listen-modes="toggle"');
+  await page.getByRole("button", { name: "Voice settings" }).click();
   await page.getByRole("checkbox", { name: "Review before sending" }).uncheck();
+  await page.keyboard.press("Escape");
   await button.click();
   await untilFrames(1);
 

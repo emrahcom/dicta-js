@@ -46,6 +46,35 @@ const STYLE = `
     gap: 0.5rem;
     align-items: end;
   }
+  /* The microphone button and the settings arrow look like one control. */
+  .voice {
+    display: flex;
+  }
+  .settings {
+    padding-inline: 0;
+    border-left: none;
+  }
+  .settings:disabled {
+    color: #888;
+  }
+  /* Placed under the arrow when it opens. */
+  .panel {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    padding: 0.5rem;
+    border: 1px solid #888;
+    background: #fff;
+    color: #222;
+  }
+  .panel fieldset {
+    margin: 0 0 0.5rem;
+    padding: 0;
+    border: none;
+  }
+  .panel label {
+    display: block;
+  }
   textarea {
     flex: 1;
     box-sizing: border-box;
@@ -75,7 +104,7 @@ const STYLE = `
     color: #fff;
   }
   [hidden] {
-    display: none;
+    display: none !important;
   }
   /* For screen readers only. */
   .announcer {
@@ -136,6 +165,9 @@ const SEND_ICON = `<svg viewBox="0 0 24 24" width="24" height="24"
   aria-hidden="true" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15
   2z"/></svg>`;
 
+const ARROW_ICON = `<svg viewBox="0 0 16 24" width="16" height="24"
+  aria-hidden="true" fill="currentColor"><path d="M3 10l5 5 5-5z"/></svg>`;
+
 // A pointer press on a button keeps the focus where it is, so the cursor stays
 // in the text field.
 function keepFocus(button: HTMLButtonElement) {
@@ -169,7 +201,11 @@ export class DictaInput extends HTMLElement {
   #shortcutDown = false;
   // A pointer press on the button, whose click is then ignored.
   #pointerPressed = false;
-  #listenModeSelect: HTMLSelectElement;
+  // Opens the voice settings panel.
+  #settingsButton: HTMLButtonElement;
+  #panel: HTMLDivElement;
+  #listenModeSwitch: HTMLFieldSetElement;
+  #listenModeRadios: HTMLInputElement[];
   // The mode the user chose here, for when storage fails.
   #chosenListenMode: string | undefined;
   #submitModeSwitch: HTMLLabelElement;
@@ -273,17 +309,24 @@ export class DictaInput extends HTMLElement {
     this.#sendButton.setAttribute("aria-label", "Send");
     keepFocus(this.#sendButton);
     this.#sendButton.addEventListener("click", () => this.#submit());
-    const row = document.createElement("div");
-    row.className = "row";
-    this.#listenModeSelect = document.createElement("select");
-    this.#listenModeSelect.part.add("voice-listen-mode");
-    this.#listenModeSelect.setAttribute("aria-label", "Listen mode");
-    for (const mode of LISTEN_MODES) {
-      this.#listenModeSelect.append(new Option(LISTEN_MODE_NAMES[mode], mode));
-    }
-    this.#listenModeSelect.addEventListener("change", () => {
-      this.#chosenListenMode = this.#listenModeSelect.value;
-      store(LISTEN_MODE_STORAGE_KEY, this.#chosenListenMode);
+    this.#listenModeSwitch = document.createElement("fieldset");
+    this.#listenModeSwitch.part.add("voice-listen-mode");
+    const legend = document.createElement("legend");
+    legend.textContent = "Listen mode";
+    this.#listenModeSwitch.append(legend);
+    this.#listenModeRadios = LISTEN_MODES.map((mode) => {
+      const radio = document.createElement("input");
+      radio.type = "radio";
+      radio.name = "listen-mode";
+      radio.value = mode;
+      radio.addEventListener("change", () => {
+        this.#chosenListenMode = mode;
+        store(LISTEN_MODE_STORAGE_KEY, mode);
+      });
+      const label = document.createElement("label");
+      label.append(radio, ` ${LISTEN_MODE_NAMES[mode]}`);
+      this.#listenModeSwitch.append(label);
+      return radio;
     });
     this.#reviewBox = document.createElement("input");
     this.#reviewBox.type = "checkbox";
@@ -294,17 +337,33 @@ export class DictaInput extends HTMLElement {
     this.#submitModeSwitch = document.createElement("label");
     this.#submitModeSwitch.part.add("voice-submit-mode");
     this.#submitModeSwitch.append(this.#reviewBox, " Review before sending");
-    row.append(
-      this.#field,
-      this.#sendButton,
-      this.#button,
-      this.#listenModeSelect,
-    );
+    this.#panel = document.createElement("div");
+    this.#panel.className = "panel";
+    this.#panel.popover = "auto";
+    this.#panel.append(this.#listenModeSwitch, this.#submitModeSwitch);
+    this.#panel.addEventListener("beforetoggle", (event) => {
+      if ((event as ToggleEvent).newState === "open") {
+        this.#placePanel();
+      }
+    });
+    this.#settingsButton = document.createElement("button");
+    this.#settingsButton.type = "button";
+    this.#settingsButton.className = "settings";
+    this.#settingsButton.part.add("voice-settings");
+    this.#settingsButton.innerHTML = ARROW_ICON;
+    this.#settingsButton.setAttribute("aria-label", "Voice settings");
+    this.#settingsButton.popoverTargetElement = this.#panel;
+    const voice = document.createElement("div");
+    voice.className = "voice";
+    voice.append(this.#button, this.#settingsButton);
+    const row = document.createElement("div");
+    row.className = "row";
+    row.append(this.#field, this.#sendButton, voice);
     root.append(
       style,
       this.#caption,
       row,
-      this.#submitModeSwitch,
+      this.#panel,
       this.#status,
       this.#announcer,
     );
@@ -336,14 +395,17 @@ export class DictaInput extends HTMLElement {
     } else {
       this.#field.setAttribute("aria-keyshortcuts", SHORTCUT);
     }
-    this.#listenModeSelect.hidden =
-      this.#button.hidden || this.#allowedListenModes().length < 2;
-    this.#listenModeSelect.value = this.#listenMode();
+    this.#listenModeSwitch.hidden = this.#allowedListenModes().length < 2;
+    const listenMode = this.#listenMode();
+    for (const radio of this.#listenModeRadios) {
+      radio.checked = radio.value === listenMode;
+    }
     this.#submitModeSwitch.hidden =
-      this.#field.hidden ||
-      this.#button.hidden ||
-      this.#allowedSubmitModes().length < 2;
+      this.#field.hidden || this.#allowedSubmitModes().length < 2;
     this.#reviewBox.checked = this.#submitMode() === "review";
+    this.#settingsButton.hidden =
+      this.#button.hidden ||
+      (this.#listenModeSwitch.hidden && this.#submitModeSwitch.hidden);
     const placeholder = this.getAttribute("placeholder");
     if (placeholder) {
       this.#field.placeholder = placeholder;
@@ -457,8 +519,17 @@ export class DictaInput extends HTMLElement {
     } else {
       this.#internals.states.delete("listening");
     }
-    this.#listenModeSelect.disabled = listening;
-    this.#reviewBox.disabled = listening;
+    this.#settingsButton.disabled = listening;
+    if (listening && this.#panel.matches(":popover-open")) {
+      this.#panel.hidePopover();
+    }
+  }
+
+  // Puts the panel under the arrow, its right edge on the arrow's.
+  #placePanel() {
+    const arrow = this.#settingsButton.getBoundingClientRect();
+    this.#panel.style.top = `${arrow.bottom + 4}px`;
+    this.#panel.style.right = `${document.documentElement.clientWidth - arrow.right}px`;
   }
 
   // While listening, the mode of the current utterance or session counts: a
