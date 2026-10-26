@@ -69,6 +69,31 @@ function transcript(text: string, final: boolean) {
   );
 }
 
+// Counts the starts of audio processing in the page, so a test can wait for
+// one before its fake clock jumps past the 5 second start limit.
+async function countAudioStarts(page: Page) {
+  await page.evaluate(() => {
+    const page = window as unknown as { audioStarts: number };
+    page.audioStarts = 0;
+    window.AudioContext = class extends AudioContext {
+      override async resume() {
+        await super.resume();
+        page.audioStarts++;
+      }
+    };
+  });
+}
+
+async function untilAudioStarts(page: Page, count: number) {
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as unknown as { audioStarts: number }).audioStarts,
+      ),
+    )
+    .toBeGreaterThanOrEqual(count);
+}
+
 async function untilFrames(count: number) {
   await expect
     .poll(() => server.connections[0]?.frames ?? 0)
@@ -358,7 +383,7 @@ test("lets the page style the pressed button", async ({ page }) => {
 });
 
 // The fake microphone plays 1 s of tone, then 2 s of silence, in a loop
-// (playwright.config.ts).
+// (test/browser/page.ts).
 
 test("toggle: ends each utterance on silence and sends no pauses", async ({
   page,
@@ -399,7 +424,11 @@ test("toggle: a press during a pause only stops", async ({ page }) => {
   const button = await open(page, 'voice-listen-modes="toggle"');
 
   await button.click();
-  await expect.poll(() => server.connections[0]?.ends.length ?? 0).toBe(1);
+  // Firefox starts audio late, in the first tone, which then counts as
+  // background; the second tone is the first utterance.
+  await expect
+    .poll(() => server.connections[0]?.ends.length ?? 0, { timeout: 10_000 })
+    .toBe(1);
   const { frames } = server.connections[0]!;
   await button.click();
 
@@ -419,24 +448,10 @@ test("toggle: the session ends after 5 minutes without speech", async ({
     navigator.mediaDevices.getUserMedia = async () =>
       new AudioContext().createMediaStreamDestination().stream;
   });
-  // Marks when audio processing has started, before the clock jumps past the
-  // 5 second start limit.
-  await page.evaluate(() => {
-    const page = window as unknown as { started: boolean };
-    window.AudioContext = class extends AudioContext {
-      override async resume() {
-        await super.resume();
-        page.started = true;
-      }
-    };
-  });
+  await countAudioStarts(page);
   await button.click();
   await expect(page.getByRole("status")).toHaveText("Listening");
-  await expect
-    .poll(() =>
-      page.evaluate(() => (window as unknown as { started?: boolean }).started),
-    )
-    .toBe(true);
+  await untilAudioStarts(page, 1);
 
   await page.clock.fastForward("04:59");
   await expect(button).toHaveAttribute("aria-pressed", "true");
@@ -800,9 +815,12 @@ async function openIdle(page: Page) {
     navigator.mediaDevices.getUserMedia = async () =>
       new AudioContext().createMediaStreamDestination().stream;
   });
+  await countAudioStarts(page);
+  let starts = 0;
   const listenOnce = async () => {
     await button.click();
     await expect(button).toHaveAttribute("aria-pressed", "true");
+    await untilAudioStarts(page, ++starts);
     await button.click();
     await expect(button).toHaveAttribute("aria-pressed", "false");
   };
