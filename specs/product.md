@@ -30,7 +30,8 @@ application the resulting text.
 - Voice by push-to-talk, holding the microphone button while speaking, or
   hands-free between two presses of the button, with voice activity detection
   finding each utterance.
-- Interim text while speaking, and the final text delivered to the application.
+- Interim text while speaking. The final text goes to the application, or into
+  the text field for the user to review and submit first.
 - Reconnect after a connection failure, with a new token when needed.
 
 Turning the text into the application's actions (tool calls) is not part of

@@ -12,7 +12,8 @@ application <-text-- dicta-js (browser) --WebSocket--> dicta-server
    It never reaches the server.
 3. Voice: the element gets a token from the application, opens a WebSocket to
    dicta-server, streams the microphone audio and shows the interim text. The
-   final text goes to the application.
+   final text goes to the application, or into the text field for the user to
+   review and submit.
 
 Message formats are in `contract-protocol.md` in `dicta-server`.
 
@@ -39,6 +40,10 @@ Importing the module defines `<dicta-input>`.
 - `voice-modes`: the voice modes the user may choose, `hold` and `toggle`, see
   Voice input. The first one is the default. Without the attribute it is
   `hold toggle`. With one mode, that mode is used and no switch is shown.
+- `voice-send`: how voice finals are sent, `review` and `auto`, see Voice input.
+  The first one is the default. Without the attribute it is `review auto`. With
+  one value, that value is used and no switch is shown. Without text input it is
+  always `auto`.
 - `lang`: optional, passed to the server as the contract's `lang`.
 - `getToken`: an async function the application provides, returning the token as
   a string. How it gets the token is up to the application; usually it calls the
@@ -46,9 +51,11 @@ Importing the module defines `<dicta-input>`.
   Connection). It is called for each new connection, because tokens expire.
   Without `getToken`, the element connects without a token, for a server with
   authentication turned off.
-- The element sends a `dicta-text` event with `{ text, input }`, where `input`
-  is `text` or `voice`, for each typed submission and each voice final with
-  text. Empty finals are not sent.
+- The element sends a `dicta-text` event with `{ text, input }` for each
+  submission of the text field and, in `auto`, for each voice final with text.
+  Empty finals are not sent. `input` tells where the text came from: `text`
+  (typed only), `voice` (spoken only) or `mixed` (both, for example a voice text
+  the user edited).
 
 ## Text input
 
@@ -57,6 +64,9 @@ Importing the module defines `<dicta-input>`.
   adds a new line.
 - The text is trimmed. Empty text is not submitted.
 - After a submission the field is cleared, ready for the next one.
+- The element tracks whether the user typed into the field and whether a voice
+  final was put into it. Both are reset when the field is submitted or becomes
+  empty. They give the submission's `input`: `text`, `voice` or `mixed`.
 
 ## Voice input
 
@@ -89,9 +99,19 @@ Two modes: push-to-talk, and hands-free between two presses.
   utterance or session.
 - When the user ends an utterance with the button, audio is captured for another
   300 ms, so the last word is not cut, and then `end` is sent.
-- While the user speaks, the interim text is shown in a caption above the text
-  field, so it does not touch text the user has typed. The final is sent as
-  `dicta-text` with `input: "voice"`, and the caption is cleared.
+- `auto`: while the user speaks, the interim text is shown in a caption above
+  the text field, so it does not touch text the user has typed. The final is
+  sent as `dicta-text` with `input: "voice"`, and the caption is cleared.
+- `review`: while the user speaks, the interim text is shown in the text field
+  at the cursor, replacing any selected text, and separated by a space from the
+  text next to it. The final replaces the interim text and the cursor moves
+  after it. The user can then edit the text and submit it with Enter, as typed
+  text. While the interim text is shown, the field is read-only and Enter does
+  not submit, so typing cannot mix with it. In a `toggle` session, each final is
+  added this way, and a submission does not end the session.
+- When the integrator allows both, a "Review before sending" checkbox lets the
+  user choose between `review` and `auto`. The choice is stored and applied like
+  the voice mode, and it cannot change during an utterance or session.
 
 ## Connection
 
@@ -103,7 +123,7 @@ Two modes: push-to-talk, and hands-free between two presses.
 - When the connection closes, the next press opens a new one, with a new token.
   There is no automatic reconnect while the user is not speaking, so no backoff
   is needed.
-- A close or an error during an utterance ends it: the interim text is cleared
+- A close or an error during an utterance ends it: the interim text is removed
   and the element shows that voice failed, until the next press.
 
 ## Accessibility
@@ -111,9 +131,9 @@ Two modes: push-to-talk, and hands-free between two presses.
 The element meets WCAG 2.2 level AA.
 
 - Everything works by keyboard, with a visible focus indicator.
-- The text field and the microphone button have accessible names. The button has
-  `aria-pressed="true"` while the element listens: during a `hold` utterance, or
-  during a whole `toggle` session.
+- The text field, the microphone button and the switches have accessible names.
+  The button has `aria-pressed="true"` while the element listens: during a
+  `hold` utterance, or during a whole `toggle` session.
 - Status changes (listening, voice failed) and each voice final are announced
   through a status region. Interim text is not announced, because it changes
   many times a second.
