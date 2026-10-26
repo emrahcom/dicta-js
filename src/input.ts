@@ -1,4 +1,5 @@
-// The <dicta-input> element: a text field and a push-to-talk microphone button.
+// The <dicta-input> element: a text field with a Send button, and a microphone
+// button for hold or hands-free voice input, with its voice settings.
 
 import { type Capture, startCapture } from "./audio/capture.ts";
 import { VoiceDetector } from "./audio/detector.ts";
