@@ -60,6 +60,7 @@ Importing the module defines `<dicta-input>`.
   - `caption`: the interim text in `auto`.
   - `field`: the text field.
   - `button`: the microphone button.
+  - `send`: the Send button.
   - `voice-listen-mode`: the listen mode switch.
   - `voice-submit-mode`: the "Review before sending" checkbox.
   - `status`: the visible status line.
@@ -74,6 +75,8 @@ Importing the module defines `<dicta-input>`.
 - A text field that starts with one line and grows with its content up to a
   limit, then scrolls, so long text stays visible. Enter submits it; Shift+Enter
   adds a new line.
+- A Send button next to the field, shown with it, submits it like Enter. A click
+  on it does not take the focus from the field.
 - The text is trimmed. Empty text is not submitted.
 - After a submission the field is cleared, ready for the next one.
 - The element tracks whether the user typed into the field and whether a voice
@@ -85,7 +88,14 @@ Importing the module defines `<dicta-input>`.
 Two modes: push-to-talk, and hands-free between two presses.
 
 - A microphone button, shown when `inputs` includes `voice`. It works with the
-  pointer, and with Space or Enter while it has focus.
+  pointer, and with Space or Enter while it has focus. A click on it does not
+  take the focus from the text field, so the user can edit and submit there
+  right after speaking.
+- In the text field, Ctrl+Shift+Space works like the button, so the user can
+  speak without leaving the field: held in `hold`, released to end, and pressed
+  in `toggle`. Ctrl+Space is not used: macOS and input methods for Chinese,
+  Japanese and Korean take it. The field has `aria-keyshortcuts`, and the
+  button's tooltip names the shortcut.
 - `hold`: the user holds the button while speaking; releasing it ends the
   utterance.
 - `toggle`: a press starts a listening session and the next press ends it, so
@@ -117,10 +127,10 @@ Two modes: push-to-talk, and hands-free between two presses.
 - `review`: while the user speaks, the interim text is shown in the text field
   at the cursor, replacing any selected text, and separated by a space from the
   text next to it. The final replaces the interim text and the cursor moves
-  after it. The user can then edit the text and submit it with Enter, as typed
-  text. While the interim text is shown, the field is read-only and Enter does
-  not submit, so typing cannot mix with it. In a `toggle` session, each final is
-  added this way, and a submission does not end the session.
+  after it. The user can then edit the text and submit it, as typed text. While
+  the interim text is shown, the field is read-only and it cannot be submitted,
+  so typing cannot mix with it. In a `toggle` session, each final is added this
+  way, and a submission does not end the session.
 - When the integrator allows both voice submit modes, a "Review before sending"
   checkbox lets the user choose between `review` and `auto`. The choice is
   stored and applied like the voice listen mode, and it cannot change during an
@@ -144,9 +154,9 @@ Two modes: push-to-talk, and hands-free between two presses.
 The element meets WCAG 2.2 level AA.
 
 - Everything works by keyboard, with a visible focus indicator.
-- The text field, the microphone button and the switches have accessible names.
-  The button has `aria-pressed="true"` while the element listens: during a
-  `hold` utterance, or during a whole `toggle` session.
+- The text field, the buttons and the switches have accessible names. The
+  microphone button has `aria-pressed="true"` while the element listens: during
+  a `hold` utterance, or during a whole `toggle` session.
 - Status changes (listening, voice failed) and each voice final are announced
   through a status region. Interim text is not announced, because it changes
   many times a second. The status region is visually hidden and separate from
