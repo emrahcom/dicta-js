@@ -967,3 +967,13 @@ test("is ready again after being removed and added while listening", async ({
   await expect(button).toHaveAttribute("aria-pressed", "true");
   await expect.poll(() => server.connections.length).toBe(2);
 });
+
+test("keeps a touch hold on the button from scrolling or selecting", async ({
+  page,
+}) => {
+  const button = await open(page);
+
+  // -webkit-touch-callout is set too, but only Safari knows it.
+  await expect(button).toHaveCSS("touch-action", "none");
+  await expect(button).toHaveCSS("user-select", "none");
+});

@@ -250,3 +250,25 @@ test("opens the panel under the arrow", async ({ page }) => {
     Math.round(arrow!.x + arrow!.width),
   );
 });
+
+test("makes the arrow at least 24 px wide", async ({ page }) => {
+  await openPage(page, "<dicta-input></dicta-input>");
+
+  const arrow = await page.getByRole("button", SETTINGS).boundingBox();
+
+  expect(arrow!.width).toBeGreaterThanOrEqual(24);
+});
+
+test("opens the panel above the arrow near the bottom", async ({ page }) => {
+  await openPage(
+    page,
+    '<div style="height: 90vh"></div><dicta-input></dicta-input>',
+  );
+  await openSettings(page);
+
+  const arrow = await page.getByRole("button", SETTINGS).boundingBox();
+  const panel = await page.locator("dicta-input .panel").boundingBox();
+
+  expect(panel!.y + panel!.height).toBeLessThanOrEqual(arrow!.y);
+  expect(panel!.y).toBeGreaterThanOrEqual(0);
+});

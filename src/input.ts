@@ -50,8 +50,9 @@ const STYLE = `
   .voice {
     display: flex;
   }
+  /* 24 px wide at least, the WCAG target size. */
   .settings {
-    padding-inline: 0;
+    padding-inline: 4px;
     border-left: none;
   }
   .settings:disabled {
@@ -94,6 +95,13 @@ const STYLE = `
     background: #fff;
     color: #222;
     line-height: 0;
+  }
+  /* A hold on a touch screen is not taken as a scroll, selection or callout. */
+  .microphone {
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
   }
   /* Listening: filled and a thicker border, so not by color alone. The padding
      makes up for the border, so the size stays the same. */
@@ -269,6 +277,7 @@ export class DictaInput extends HTMLElement {
     this.#button = document.createElement("button");
     this.#button.type = "button";
     this.#button.part.add("button");
+    this.#button.className = "microphone";
     this.#button.innerHTML = MICROPHONE_ICON;
     this.#button.setAttribute("aria-label", "Speak");
     this.#button.title = "Speak (Ctrl+Shift+Space)";
@@ -536,11 +545,16 @@ export class DictaInput extends HTMLElement {
     }
   }
 
-  // Puts the panel under the arrow, its right edge on the arrow's.
+  // Puts the panel under the arrow, or over it in the lower half of the
+  // viewport, so it stays on screen; its right edge is on the arrow's.
   #placePanel() {
     const arrow = this.#settingsButton.getBoundingClientRect();
-    this.#panel.style.top = `${arrow.bottom + 4}px`;
-    this.#panel.style.right = `${document.documentElement.clientWidth - arrow.right}px`;
+    const { clientWidth, clientHeight } = document.documentElement;
+    const below = arrow.top + arrow.bottom < clientHeight;
+    const style = this.#panel.style;
+    style.top = below ? `${arrow.bottom + 4}px` : "auto";
+    style.bottom = below ? "auto" : `${clientHeight - arrow.top + 4}px`;
+    style.right = `${clientWidth - arrow.right}px`;
   }
 
   // While listening, the mode of the current utterance or session counts: a
