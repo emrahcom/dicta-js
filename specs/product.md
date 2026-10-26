@@ -32,7 +32,10 @@ application the resulting text.
 - Interim text while speaking, and the final text delivered to the application.
 - Reconnect after a connection failure, with a new token when needed.
 
-Later, dicta-js may add hands-free voice input (voice activity detection), let
-users choose among the inputs and voice modes the integrator allows, and pass
-the application's actions and context to the server, so the text becomes an
-action instead of plain text.
+Later, dicta-js may add hands-free voice input (voice activity detection) and
+let users choose among the inputs and voice modes the integrator allows.
+
+Turning the text into the application's actions (tool calls) is not part of
+dicta-js. `dicta-js` and `dicta-server` are complete without it: the application
+gets the text and handles it itself. Applications that want actions can add the
+optional `dicta-action-js`, which takes the text that `dicta-js` delivers.
