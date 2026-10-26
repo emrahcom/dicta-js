@@ -154,6 +154,9 @@ Importing the module defines `<dicta-input>`.
 - The element opens the WebSocket to `<server>/dicta/v1/listen` on the first
   press, with a token from `getToken` when it is set, and keeps it open for the
   next utterances.
+- One minute after listening ends, when the user has not started listening
+  again, the element closes the connection, so an idle page does not hold a
+  speech-to-text session open on the server. The next press opens a new one.
 - Audio captured before `ready` is kept and sent after it, in the same 50 ms
   frames.
 - When the connection closes, the next press opens a new one, with a new token
