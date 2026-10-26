@@ -91,9 +91,9 @@ Importing the module defines `<dicta-input>`.
 ### Listening
 
 - A microphone button, shown when `inputs` includes `voice`. It works with the
-  pointer, and with Space or Enter while it has focus. A click on it does not
-  take the focus from the text field, so the user can edit and submit there
-  right after speaking.
+  primary pointer button, and with Space or Enter while it has focus. A click on
+  it does not take the focus from the text field, so the user can edit and
+  submit there right after speaking.
 - In the text field, Ctrl+Shift+Space works like the button, so the user can
   speak without leaving the field: held in `hold`, released to end, and pressed
   in `toggle`. Ctrl+Space is not used: macOS and input methods for Chinese,
@@ -113,7 +113,15 @@ Importing the module defines `<dicta-input>`.
   utterance as in `hold`. The session also ends after 5 minutes without speech.
   Background speech becomes text too; the user decides whether to use this mode.
 - When the user ends an utterance with the button, audio is captured for another
-  300 ms, so the last word is not cut, and then `end` is sent.
+  300 ms, so the last word is not cut, and then `end` is sent. A press in that
+  time is kept and starts listening right after it, so a quick next phrase is
+  not lost; a release before then drops it.
+- When the button or the text field loses the focus while a key holds an
+  utterance, the utterance ends as on a release, since the key release may never
+  arrive.
+- When the element is removed from the page, it stops listening, closes the
+  connection and resets its state, as after a failure but without showing that
+  voice failed.
 
 ### Audio
 
