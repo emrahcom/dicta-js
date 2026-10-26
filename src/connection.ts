@@ -11,9 +11,9 @@ export type ConnectionOptions = {
 
 export type ConnectionEvents = {
   onTranscript: (transcript: Transcript) => void;
-  // Called once when the connection ends without close() being called. The
-  // code is undefined when no socket was opened, because getToken failed.
-  onClose: (code: number | undefined) => void;
+  // Called once when the connection ends without close() being called,
+  // including when it cannot be set up.
+  onClose: () => void;
 };
 
 const PROTOCOL = "dicta";
@@ -50,28 +50,28 @@ export class Connection {
   }
 
   async #open({ server, lang, getToken }: ConnectionOptions) {
-    const protocols = [PROTOCOL];
-    if (getToken) {
-      try {
+    try {
+      const protocols = [PROTOCOL];
+      if (getToken) {
         protocols.push(await getToken());
-      } catch {
-        this.#fail(undefined);
+      }
+      if (this.#closed) {
         return;
       }
+      const url = new URL(LISTEN_PATH, server);
+      if (lang) {
+        url.searchParams.set("lang", lang);
+      }
+      const socket = new WebSocket(url, protocols);
+      socket.binaryType = "arraybuffer";
+      socket.onmessage = (event) => this.#onMessage(event.data);
+      // An error is always followed by a close, so only the close is handled.
+      socket.onclose = () => this.#fail();
+      this.#socket = socket;
+    } catch {
+      // getToken failed, or the server URL or the token is not valid.
+      this.#fail();
     }
-    if (this.#closed) {
-      return;
-    }
-    const url = new URL(LISTEN_PATH, server);
-    if (lang) {
-      url.searchParams.set("lang", lang);
-    }
-    const socket = new WebSocket(url, protocols);
-    socket.binaryType = "arraybuffer";
-    socket.onmessage = (event) => this.#onMessage(event.data);
-    // An error is always followed by a close, so only the close is handled.
-    socket.onclose = (event) => this.#fail(event.code);
-    this.#socket = socket;
   }
 
   #onMessage(data: unknown) {
@@ -109,11 +109,11 @@ export class Connection {
     }
   }
 
-  #fail(code: number | undefined) {
+  #fail() {
     if (this.#closed) {
       return;
     }
     this.#closed = true;
-    this.#events.onClose(code);
+    this.#events.onClose();
   }
 }

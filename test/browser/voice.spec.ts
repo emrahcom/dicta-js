@@ -840,3 +840,20 @@ test("opens a new connection on the press after an idle close", async ({
   await expect.poll(() => server.connections.length).toBe(2);
   await expect(page.getByRole("status")).toHaveText("Listening");
 });
+
+test("shows Voice failed when the connection cannot be set up", async ({
+  page,
+}) => {
+  await openPage(
+    page,
+    '<dicta-input voice-listen-modes="toggle"></dicta-input>',
+  );
+  const button = page.getByRole("button", { name: "Speak" });
+  // Without a server attribute, the WebSocket URL is not valid.
+  await button.click();
+
+  await expect(page.getByRole("status")).toHaveText("Voice failed");
+  await expect(button).toHaveAttribute("aria-pressed", "false");
+  await button.click();
+  await expect(page.getByRole("status")).toHaveText("Voice failed");
+});

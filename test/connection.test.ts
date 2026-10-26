@@ -47,17 +47,17 @@ async function fakeServer(t: TestContext) {
 
 function connect(options: ConnectionOptions) {
   const transcripts: Transcript[] = [];
-  const closes: (number | undefined)[] = [];
+  let closes = 0;
   let onClosed = () => {};
   const closed = new Promise<void>((resolve) => (onClosed = resolve));
   const connection = new Connection(options, {
     onTranscript: (transcript) => transcripts.push(transcript),
-    onClose: (code) => {
-      closes.push(code);
+    onClose: () => {
+      closes++;
       onClosed();
     },
   });
-  return { connection, transcripts, closes, closed };
+  return { connection, transcripts, closes: () => closes, closed };
 }
 
 async function until(check: () => boolean) {
@@ -138,7 +138,7 @@ test("reports transcripts and ignores other messages", async (t) => {
   ]);
 });
 
-test("reports a close by the server once, with its code", async (t) => {
+test("reports a close by the server once", async (t) => {
   const server = await fakeServer(t);
   const { connection, closes, closed } = connect({ server: server.url });
   const { socket } = await server.connection;
@@ -149,7 +149,7 @@ test("reports a close by the server once, with its code", async (t) => {
   connection.close();
   await new Promise((resolve) => setTimeout(resolve, 20));
 
-  assert.deepEqual(closes, [4001]);
+  assert.equal(closes(), 1);
   assert.equal(connection.closed, true);
 });
 
@@ -167,8 +167,34 @@ test("reports a failing getToken without opening a socket", async (t) => {
   await closed;
   await new Promise((resolve) => setTimeout(resolve, 20));
 
-  assert.deepEqual(closes, [undefined]);
+  assert.equal(closes(), 1);
   assert.equal(connected, false);
+});
+
+test("reports an empty token without opening a socket", async (t) => {
+  const server = await fakeServer(t);
+  let connected = false;
+  void server.connection.then(() => (connected = true));
+  const { connection, closes, closed } = connect({
+    server: server.url,
+    getToken: async () => "",
+  });
+
+  await closed;
+  await new Promise((resolve) => setTimeout(resolve, 20));
+
+  assert.equal(closes(), 1);
+  assert.equal(connection.closed, true);
+  assert.equal(connected, false);
+});
+
+test("reports a missing server", async () => {
+  const { connection, closes, closed } = connect({ server: "" });
+
+  await closed;
+
+  assert.equal(closes(), 1);
+  assert.equal(connection.closed, true);
 });
 
 test("reports nothing when the client closes", async (t) => {
@@ -181,5 +207,5 @@ test("reports nothing when the client closes", async (t) => {
   await serverClosed;
   await new Promise((resolve) => setTimeout(resolve, 20));
 
-  assert.deepEqual(closes, []);
+  assert.equal(closes(), 0);
 });
