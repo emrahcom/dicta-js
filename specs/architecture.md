@@ -10,10 +10,10 @@ application <-text-- dicta-js (browser) --WebSocket--> dicta-server
 1. The application puts the dicta-js element on its page and configures it.
 2. Typed text: the user submits it, and the element gives it to the application.
    It never reaches the server.
-3. Voice: the element gets a token from the application, opens a WebSocket to
-   dicta-server, streams the microphone audio and shows the interim text. The
-   final text goes to the application, or into the text field for the user to
-   review and submit.
+3. Voice: the element opens a WebSocket to dicta-server, with a token from the
+   application when the server needs one, streams the microphone audio and shows
+   the interim text. The final text goes to the application, or into the text
+   field for the user to review and submit.
 
 Message formats are in `contract-protocol.md` in `dicta-server`.
 
@@ -38,12 +38,11 @@ Importing the module defines `<dicta-input>`.
   placeholder is used.
 - `placeholder`: optional text shown in the empty text field.
 - `voice-listen-modes`: how the user may start and stop listening, `hold` and
-  `toggle`, see Voice input. The first one is the default. Without the attribute
-  it is `hold toggle`. With one mode, that mode is used and no switch is shown.
-- `voice-submit-modes`: how voice finals are submitted, `review` and `auto`, see
-  Voice input. The first one is the default. Without the attribute it is
-  `review auto`. With one value, that value is used and no switch is shown.
-  Without text input it is always `auto`.
+  `toggle`, by default `hold toggle`.
+- `voice-submit-modes`: how voice finals are submitted, `review` and `auto`, by
+  default `review auto`. Without text input it is always `auto`.
+- In both, the first mode is the default and the user may switch to the others,
+  see Voice input (Switches). With one mode, no switch is shown.
 - `lang`: optional, passed to the server as the contract's `lang`.
 - `getToken`: an async function the application provides, returning the token as
   a string. How it gets the token is up to the application; usually it calls the
@@ -87,7 +86,7 @@ Importing the module defines `<dicta-input>`.
 
 ## Voice input
 
-Two modes: push-to-talk, and hands-free between two presses.
+### Listening
 
 - A microphone button, shown when `inputs` includes `voice`. It works with the
   pointer, and with Space or Enter while it has focus. A click on it does not
@@ -107,6 +106,11 @@ Two modes: push-to-talk, and hands-free between two presses.
   it and sends `end`. Silence is not sent. A press during speech ends that
   utterance as in `hold`. The session also ends after 5 minutes without speech.
   Background speech becomes text too; the user decides whether to use this mode.
+- When the user ends an utterance with the button, audio is captured for another
+  300 ms, so the last word is not cut, and then `end` is sent.
+
+### Audio
+
 - At the start of each `hold` utterance, or of a `toggle` session, the element
   asks for the microphone, so the browser asks for permission the first time. It
   stops the microphone after each utterance or session, so the browser's
@@ -116,13 +120,9 @@ Two modes: push-to-talk, and hands-free between two presses.
   frames of 50 ms. Converting in the element works the same in every supported
   browser; Firefox cannot open audio processing at a rate other than the
   microphone's.
-- When the integrator allows both voice listen modes, a switch next to the
-  button lets the user choose the mode. The choice is stored in the browser and
-  used on the next visit; without a stored choice, or when the stored mode is no
-  longer allowed, the first mode in `voice-listen-modes` applies. The mode
-  cannot change during an utterance or session.
-- When the user ends an utterance with the button, audio is captured for another
-  300 ms, so the last word is not cut, and then `end` is sent.
+
+### Showing and submitting
+
 - `auto`: while the user speaks, the interim text is shown in a caption above
   the text field, so it does not touch text the user has typed. The final is
   sent as `dicta-text` with `input: "voice"`, and the caption is cleared.
@@ -133,21 +133,28 @@ Two modes: push-to-talk, and hands-free between two presses.
   the interim text is shown, the field is read-only and it cannot be submitted,
   so typing cannot mix with it. In a `toggle` session, each final is added this
   way, and a submission does not end the session.
-- When the integrator allows both voice submit modes, a "Review before sending"
-  checkbox lets the user choose between `review` and `auto`. The choice is
-  stored and applied like the voice listen mode, and it cannot change during an
-  utterance or session.
+
+### Switches
+
+- With both listen modes allowed, a select next to the button lets the user
+  choose `hold` or `toggle`. With both submit modes allowed and text input on, a
+  "Review before sending" checkbox lets the user choose `review` or `auto`.
+- Each choice is stored in the browser and used on the next visit. Without a
+  stored choice, or when the stored mode is no longer allowed, the first allowed
+  mode applies.
+- The switches are disabled during an utterance or session, so a mode cannot
+  change while it is in use.
 
 ## Connection
 
 - The element opens the WebSocket to `<server>/dicta/v1/listen` on the first
-  press, with a token from `getToken`, and keeps it open for the next
-  utterances.
+  press, with a token from `getToken` when it is set, and keeps it open for the
+  next utterances.
 - Audio captured before `ready` is kept and sent after it, in the same 50 ms
   frames.
-- When the connection closes, the next press opens a new one, with a new token.
-  There is no automatic reconnect while the user is not speaking, so no backoff
-  is needed.
+- When the connection closes, the next press opens a new one, with a new token
+  when `getToken` is set. There is no automatic reconnect while the user is not
+  speaking, so no backoff is needed.
 - A close or an error during an utterance ends it: the interim text is removed
   and the element shows that voice failed, until the next press.
 
@@ -167,6 +174,5 @@ The element meets WCAG 2.2 level AA.
   for example a filled background and a thicker border, so the listening state
   is visible even when the status line is hidden. All text and icons have enough
   contrast.
-- Animations are turned off when the user prefers reduced motion.
 - User documents advise integrators to keep text input on, because voice alone
   excludes users who cannot speak or whose speech is not recognized well.
