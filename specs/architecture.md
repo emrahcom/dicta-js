@@ -36,7 +36,9 @@ Importing the module defines `<dicta-input>`.
 - `label`: optional accessible name of the text field. Without it, the
   placeholder is used.
 - `placeholder`: optional text shown in the empty text field.
-- `voice-mode`: `hold` (the default) or `toggle`, see Voice input.
+- `voice-modes`: the voice modes the user may choose, `hold` and `toggle`, see
+  Voice input. The first one is the default. Without the attribute it is
+  `hold toggle`. With one mode, that mode is used and no switch is shown.
 - `lang`: optional, passed to the server as the contract's `lang`.
 - `getToken`: an async function the application provides, returning the token as
   a string. How it gets the token is up to the application; usually it calls the
@@ -80,6 +82,11 @@ Two modes: push-to-talk, and hands-free between two presses.
   frames of 50 ms. Converting in the element works the same in every supported
   browser; Firefox cannot open audio processing at a rate other than the
   microphone's.
+- When the integrator allows both modes, a switch next to the button lets the
+  user choose the mode. The choice is stored in the browser and used on the next
+  visit; without a stored choice, or when the stored mode is no longer allowed,
+  the first mode in `voice-modes` applies. The mode cannot change during an
+  utterance or session.
 - When the user ends an utterance with the button, audio is captured for another
   300 ms, so the last word is not cut, and then `end` is sent.
 - While the user speaks, the interim text is shown in a caption above the text
