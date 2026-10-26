@@ -103,7 +103,8 @@ Importing `index.js` defines `<dicta-input>`.
   speak without leaving the field: held in `hold`, released to end, and pressed
   in `toggle`. Ctrl+Space is not used: macOS and input methods for Chinese,
   Japanese and Korean take it. The field has `aria-keyshortcuts`, and the
-  button's tooltip names the shortcut.
+  button's tooltip names the shortcut; without text input there is no field, so
+  neither names it.
 - Screen readers press a button with a `click` event alone, without a pointer or
   key press before it, so holding is not possible there. Such a click works as a
   press in `toggle`, whatever the listen mode: the first starts listening with
