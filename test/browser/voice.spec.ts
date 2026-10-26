@@ -276,6 +276,33 @@ test("shows a focus outline on the field and the button", async ({ page }) => {
   expect(await outline()).toBe("solid");
 });
 
+test("looks pressed while listening, by more than color", async ({ page }) => {
+  const button = await open(page, 'voice-listen-modes="toggle"');
+  const look = () =>
+    button.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        background: style.backgroundColor,
+        border: style.borderTopWidth,
+        width: element.offsetWidth,
+      };
+    });
+  const idle = await look();
+
+  await button.click();
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+  const pressed = await look();
+  await button.click();
+  await expect(button).toHaveAttribute("aria-pressed", "false");
+
+  expect(pressed.background).not.toBe(idle.background);
+  expect(pressed.border).toBe("3px");
+  expect(idle.border).toBe("1px");
+  // The size stays the same.
+  expect(pressed.width).toBe(idle.width);
+  expect(await look()).toEqual(idle);
+});
+
 // The fake microphone plays 1 s of tone, then 2 s of silence, in a loop
 // (playwright.config.ts).
 

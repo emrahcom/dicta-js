@@ -55,6 +55,21 @@ const STYLE = `
     /* 5 lines, then it scrolls. */
     max-height: calc(5lh + 1rem + 2px);
   }
+  button {
+    padding: calc(0.25rem + 2px);
+    border: 1px solid #888;
+    background: #fff;
+    color: #222;
+    line-height: 0;
+  }
+  /* Listening: filled and a thicker border, so not by color alone. The padding
+     makes up for the border, so the size stays the same. */
+  button[aria-pressed="true"] {
+    padding: 0.25rem;
+    border: 3px solid #0b3a75;
+    background: #1a5fb4;
+    color: #fff;
+  }
   [hidden] {
     display: none;
   }
