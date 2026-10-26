@@ -161,7 +161,7 @@ If dicta-server runs without authentication, do not set `getToken`.
 Start dicta-server without authentication. Then run:
 
 ```sh
-npm run example
+npm run demo
 ```
 
 Open `http://localhost:4174/?server=ws://localhost:8080`. The microphone works

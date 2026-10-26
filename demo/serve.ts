@@ -1,5 +1,5 @@
-// Serves the example page and dist/ for trying dicta-js by hand. Run it with
-// `npm run example`, which builds first.
+// Serves the demo page and dist/ for trying dicta-js by hand. Run it with
+// `npm run demo`, which builds first.
 
 import { readFile } from "node:fs/promises";
 import {
@@ -11,13 +11,13 @@ import {
 const PORT = Number(process.env.PORT || 4174);
 const ROOT = new URL("../", import.meta.url);
 const TYPES: Record<string, string> = {
-  "/example/index.html": "text/html",
+  "/demo/index.html": "text/html",
 };
 
 async function handle(request: IncomingMessage, response: ServerResponse) {
   let { pathname } = new URL(request.url ?? "/", "http://localhost");
   if (pathname === "/") {
-    pathname = "/example/index.html";
+    pathname = "/demo/index.html";
   }
   const allowed = pathname in TYPES || pathname.startsWith("/dist/");
   try {
@@ -36,5 +36,5 @@ async function handle(request: IncomingMessage, response: ServerResponse) {
 
 createServer((request, response) => void handle(request, response)).listen(
   PORT,
-  () => console.log(`example on http://localhost:${PORT}`),
+  () => console.log(`demo on http://localhost:${PORT}`),
 );

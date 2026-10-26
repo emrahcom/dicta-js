@@ -24,7 +24,7 @@
     "lint:fix": "oxlint --type-aware --fix",
     "test": "node --test --test-timeout=5000 \"test/**/*.test.ts\"",
     "test:browser": "npm run build && playwright test",
-    "example": "npm run build && node example/serve.ts"
+    "demo": "npm run build && node demo/serve.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",
