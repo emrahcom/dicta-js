@@ -57,8 +57,8 @@ The event detail has two fields:
 
 - `server`: the address of your dicta-server.
 - `inputs`: `text`, `voice` or `text voice`. The default is `text voice`.
-- `voice-modes`: the voice modes the user may choose. The first one is used
-  until the user chooses. Without this attribute, it is `hold toggle`.
+- `voice-listen-modes`: how the user may start and stop listening. The first one
+  is used until the user chooses. Without this attribute, it is `hold toggle`.
   - `hold`: the user holds the button while speaking.
   - `toggle`: the user presses once to start and once to stop. In between, the
     user can say many things. A pause of about one second ends each one. It also

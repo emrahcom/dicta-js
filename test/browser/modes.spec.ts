@@ -9,8 +9,13 @@ test("allows both modes by default, hold first", async ({ page }) => {
   await expect(page.getByRole("combobox", SWITCH)).toHaveValue("hold");
 });
 
-test("uses the first mode in voice-modes as the default", async ({ page }) => {
-  await openPage(page, '<dicta-input voice-modes="toggle hold"></dicta-input>');
+test("uses the first mode in voice-listen-modes as the default", async ({
+  page,
+}) => {
+  await openPage(
+    page,
+    '<dicta-input voice-listen-modes="toggle hold"></dicta-input>',
+  );
 
   await expect(page.getByRole("combobox", SWITCH)).toHaveValue("toggle");
 });
@@ -18,8 +23,8 @@ test("uses the first mode in voice-modes as the default", async ({ page }) => {
 test("shows no switch with one mode or no valid mode", async ({ page }) => {
   await openPage(
     page,
-    `<dicta-input id="one" voice-modes="toggle"></dicta-input>
-     <dicta-input id="none" voice-modes="other"></dicta-input>`,
+    `<dicta-input id="one" voice-listen-modes="toggle"></dicta-input>
+     <dicta-input id="none" voice-listen-modes="other"></dicta-input>`,
   );
 
   await expect(page.locator("#one").getByRole("button")).toBeVisible();
@@ -42,8 +47,8 @@ test("ignores a stored choice that is no longer allowed", async ({ page }) => {
 
   await openPage(
     page,
-    `<dicta-input id="hold" voice-modes="hold"></dicta-input>
-     <dicta-input id="both" voice-modes="hold toggle"></dicta-input>`,
+    `<dicta-input id="hold" voice-listen-modes="hold"></dicta-input>
+     <dicta-input id="both" voice-listen-modes="hold toggle"></dicta-input>`,
   );
 
   // The switch is hidden with one mode, but still shows the mode in use.
