@@ -134,6 +134,11 @@ Importing the module defines `<dicta-input>`.
   frames of 50 ms. Converting in the element works the same in every supported
   browser; Firefox cannot open audio processing at a rate other than the
   microphone's.
+- Once the microphone is granted, audio processing must start within 5 seconds.
+  Otherwise listening fails as when the microphone is denied, and the element
+  shows that voice failed. A browser can leave it stopped, for example without a
+  sound system or without a user action. Waiting for the permission answer has
+  no limit, since the user may take time to decide.
 
 ### Showing and submitting
 
