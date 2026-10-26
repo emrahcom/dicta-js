@@ -7,9 +7,13 @@ export type Capture = {
 };
 
 const WORKLET_URL = new URL("./worklet.js", import.meta.url);
+// After the microphone is granted, audio processing must start within this. A
+// browser can leave it stopped, for example without a sound system.
+const START_LIMIT_MS = 5000;
 
 // Call it from the user's press: Safari starts audio only from a user action.
-// Rejects when the microphone is denied or missing.
+// Rejects when the microphone is denied or missing, or when audio processing
+// does not start. Waiting for the permission answer has no limit.
 export async function startCapture(
   onFrame: (frame: ArrayBuffer) => void,
 ): Promise<Capture> {
@@ -25,11 +29,17 @@ export async function startCapture(
         autoGainControl: true,
       },
     });
-    await context.audioWorklet.addModule(WORKLET_URL);
-    await context.resume();
+    await within(
+      (async () => {
+        await context.audioWorklet.addModule(WORKLET_URL);
+        await context.resume();
+      })(),
+      START_LIMIT_MS,
+    );
   } catch (err) {
     stopTracks(stream);
-    await context.close();
+    // Not awaited: a context that did not start may not close either.
+    context.close().catch(() => {});
     throw err;
   }
 
@@ -61,6 +71,17 @@ export async function startCapture(
       await context.close();
     },
   };
+}
+
+function within(promise: Promise<void>, ms: number): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const limit = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error("audio processing did not start")),
+      ms,
+    );
+  });
+  return Promise.race([promise, limit]).finally(() => clearTimeout(timer));
 }
 
 function stopTracks(stream: MediaStream | undefined) {

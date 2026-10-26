@@ -419,8 +419,24 @@ test("toggle: the session ends after 5 minutes without speech", async ({
     navigator.mediaDevices.getUserMedia = async () =>
       new AudioContext().createMediaStreamDestination().stream;
   });
+  // Marks when audio processing has started, before the clock jumps past the
+  // 5 second start limit.
+  await page.evaluate(() => {
+    const page = window as unknown as { started: boolean };
+    window.AudioContext = class extends AudioContext {
+      override async resume() {
+        await super.resume();
+        page.started = true;
+      }
+    };
+  });
   await button.click();
   await expect(page.getByRole("status")).toHaveText("Listening");
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as unknown as { started?: boolean }).started),
+    )
+    .toBe(true);
 
   await page.clock.fastForward("04:59");
   await expect(button).toHaveAttribute("aria-pressed", "true");
@@ -976,4 +992,65 @@ test("keeps a touch hold on the button from scrolling or selecting", async ({
   // -webkit-touch-callout is set too, but only Safari knows it.
   await expect(button).toHaveCSS("touch-action", "none");
   await expect(button).toHaveCSS("user-select", "none");
+});
+
+test("fails when audio processing does not start in 5 seconds", async ({
+  page,
+}) => {
+  await page.clock.install();
+  const button = await open(page, 'voice-listen-modes="toggle"');
+  await page.evaluate(() => {
+    const real = navigator.mediaDevices.getUserMedia.bind(
+      navigator.mediaDevices,
+    );
+    const page = window as unknown as {
+      streams: MediaStream[];
+      stuck: boolean;
+    };
+    page.streams = [];
+    page.stuck = true;
+    // Audio processing that never starts, as in Firefox without a sound
+    // system, until stuck is cleared.
+    window.AudioContext = class extends AudioContext {
+      override resume() {
+        return page.stuck ? new Promise<void>(() => {}) : super.resume();
+      }
+    };
+    navigator.mediaDevices.getUserMedia = async (constraints) => {
+      const stream = await real(constraints);
+      page.streams.push(stream);
+      return stream;
+    };
+  });
+  const released = () =>
+    page.evaluate(() =>
+      (
+        window as unknown as { streams: MediaStream[] }
+      ).streams[0]!.getTracks().every((track) => track.readyState === "ended"),
+    );
+
+  await button.click();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as unknown as { streams: MediaStream[] }).streams.length,
+      ),
+    )
+    .toBe(1);
+  await page.clock.fastForward(4900);
+  await expect(page.getByRole("status")).toHaveText("Listening");
+  await page.clock.fastForward(200);
+
+  await expect(page.getByRole("status")).toHaveText("Voice failed");
+  await expect(button).toHaveAttribute("aria-pressed", "false");
+  expect(await released()).toBe(true);
+
+  await page.evaluate(() => {
+    (window as unknown as { stuck: boolean }).stuck = false;
+  });
+  await button.click();
+  await expect(page.getByRole("status")).toHaveText("Listening");
+  await expect
+    .poll(() => server.connections[0]?.frames ?? 0)
+    .toBeGreaterThan(0);
 });
