@@ -56,6 +56,10 @@ Importing the module defines `<dicta-input>`.
   Empty finals are not sent. `input` tells where the text came from: `text`
   (typed only), `voice` (spoken only) or `mixed` (both, for example a voice text
   the user edited).
+- Two CSS parts let the integrator style or hide parts of the element:
+  `caption`, the interim text in `auto`, and `status`, the visible status line.
+  For example, `dicta-input::part(status) { display: none; }` leaves only the
+  button and the text field.
 
 ## Text input
 
@@ -137,7 +141,8 @@ The element meets WCAG 2.2 level AA.
   `hold` utterance, or during a whole `toggle` session.
 - Status changes (listening, voice failed) and each voice final are announced
   through a status region. Interim text is not announced, because it changes
-  many times a second.
+  many times a second. The status region is visually hidden and separate from
+  the visible status line, so hiding the `status` part does not silence it.
 - The speaking state is not shown by color alone, and all text and icons have
   enough contrast.
 - Animations are turned off when the user prefers reduced motion.
