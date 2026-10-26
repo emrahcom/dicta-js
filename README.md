@@ -77,9 +77,12 @@ hold a button.
 
 ## Style
 
-You can style two parts of the element with CSS:
+You can style each part of the element with CSS:
 
 - `caption`: the text the user is saying, shown above the text field.
+- `field`: the text field.
+- `button`: the microphone button.
+- `voice-listen-mode`: the switch between the listen modes.
 - `status`: the line under the element, for example "Listening".
 
 For example, this hides the status line:
@@ -91,6 +94,15 @@ dicta-input::part(status) {
 ```
 
 Screen readers still read the status when the line is hidden.
+
+Pseudo-classes work too. For example, this changes the focus outline of the
+button:
+
+```css
+dicta-input::part(button):focus-visible {
+  outline-color: green;
+}
+```
 
 ## Token
 

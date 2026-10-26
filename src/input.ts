@@ -119,10 +119,12 @@ export class DictaInput extends HTMLElement {
     this.#announcer.setAttribute("role", "status");
     this.#field = document.createElement("textarea");
     this.#field.rows = 1;
+    this.#field.part.add("field");
     this.#field.addEventListener("keydown", (event) => this.#onFieldKey(event));
     this.#field.addEventListener("input", () => this.#fit());
     this.#button = document.createElement("button");
     this.#button.type = "button";
+    this.#button.part.add("button");
     this.#button.innerHTML = MICROPHONE_ICON;
     this.#button.setAttribute("aria-label", "Speak");
     this.#button.setAttribute("aria-pressed", "false");
@@ -149,6 +151,7 @@ export class DictaInput extends HTMLElement {
     const row = document.createElement("div");
     row.className = "row";
     this.#listenModeSelect = document.createElement("select");
+    this.#listenModeSelect.part.add("voice-listen-mode");
     this.#listenModeSelect.setAttribute("aria-label", "Voice mode");
     for (const mode of LISTEN_MODES) {
       this.#listenModeSelect.append(new Option(LISTEN_MODE_NAMES[mode], mode));
