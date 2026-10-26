@@ -21,6 +21,8 @@ const DEFAULT_SUBMIT_MODES = "review auto";
 const SUBMIT_MODE_STORAGE_KEY = "dicta-voice-submit-mode";
 // Audio captured after the user ends an utterance, so the last word is not cut.
 const POST_ROLL_MS = 300;
+// In the text field, works like the microphone button.
+const SHORTCUT = "Control+Shift+Space";
 // A toggle session without speech for this long ends by itself.
 const IDLE_SESSION_MS = 5 * 60 * 1000;
 
@@ -161,6 +163,8 @@ export class DictaInput extends HTMLElement {
   #field: HTMLTextAreaElement;
   #button: HTMLButtonElement;
   #sendButton: HTMLButtonElement;
+  // Ctrl+Shift+Space is held down in the text field.
+  #shortcutDown = false;
   #listenModeSelect: HTMLSelectElement;
   // The mode the user chose here, for when storage fails.
   #chosenListenMode: string | undefined;
@@ -205,6 +209,12 @@ export class DictaInput extends HTMLElement {
     this.#field.rows = 1;
     this.#field.part.add("field");
     this.#field.addEventListener("keydown", (event) => this.#onFieldKey(event));
+    this.#field.addEventListener("keyup", (event) => {
+      if (event.code === "Space" && this.#shortcutDown) {
+        this.#shortcutDown = false;
+        this.#release();
+      }
+    });
     this.#field.addEventListener("input", () => {
       this.#typed = this.#field.value !== "";
       this.#spoken &&= this.#typed;
@@ -215,6 +225,7 @@ export class DictaInput extends HTMLElement {
     this.#button.part.add("button");
     this.#button.innerHTML = MICROPHONE_ICON;
     this.#button.setAttribute("aria-label", "Speak");
+    this.#button.title = "Speak (Ctrl+Shift+Space)";
     this.#button.setAttribute("aria-pressed", "false");
     keepFocus(this.#button);
     this.#button.addEventListener("pointerdown", (event) => {
@@ -301,6 +312,11 @@ export class DictaInput extends HTMLElement {
     this.#field.hidden = !inputs.includes("text");
     this.#button.hidden = !inputs.includes("voice");
     this.#sendButton.hidden = this.#field.hidden;
+    if (this.#button.hidden) {
+      this.#field.removeAttribute("aria-keyshortcuts");
+    } else {
+      this.#field.setAttribute("aria-keyshortcuts", SHORTCUT);
+    }
     this.#listenModeSelect.hidden =
       this.#button.hidden || this.#allowedListenModes().length < 2;
     this.#listenModeSelect.value = this.#listenMode();
@@ -324,6 +340,19 @@ export class DictaInput extends HTMLElement {
   }
 
   #onFieldKey(event: KeyboardEvent) {
+    if (
+      event.code === "Space" &&
+      event.ctrlKey &&
+      event.shiftKey &&
+      !this.#button.hidden
+    ) {
+      event.preventDefault();
+      if (!event.repeat) {
+        this.#shortcutDown = true;
+        this.#press();
+      }
+      return;
+    }
     // Enter while an input method is composing text belongs to the composition.
     if (event.key !== "Enter" || event.shiftKey || event.isComposing) {
       return;

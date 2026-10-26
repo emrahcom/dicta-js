@@ -642,3 +642,91 @@ test("review: Send does nothing while interim text is shown", async ({
   expect(await events(page)).toEqual([]);
   await expect(field).toHaveValue("add a");
 });
+
+test("shortcut: hold Ctrl+Shift+Space in the field to speak", async ({
+  page,
+}) => {
+  const button = await open(page);
+  const field = page.getByRole("textbox");
+  await field.focus();
+
+  await page.keyboard.down("Control");
+  await page.keyboard.down("Shift");
+  await page.keyboard.down("Space");
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+  await untilFrames(5);
+  await page.keyboard.up("Space");
+  await page.keyboard.up("Shift");
+  await page.keyboard.up("Control");
+
+  await expect(button).toHaveAttribute("aria-pressed", "false");
+  await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue("");
+});
+
+test("shortcut: press Ctrl+Shift+Space to start and stop toggle", async ({
+  page,
+}) => {
+  const button = await open(page, 'voice-listen-modes="toggle"');
+  const field = page.getByRole("textbox");
+  await field.focus();
+
+  await page.keyboard.press("Control+Shift+Space");
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+  await untilFrames(1);
+  await page.keyboard.press("Control+Shift+Space");
+
+  await expect(button).toHaveAttribute("aria-pressed", "false");
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue("");
+});
+
+test("shortcut: names it only with voice input", async ({ page }) => {
+  await openPage(
+    page,
+    `<dicta-input id="both"></dicta-input>
+     <dicta-input id="text" inputs="text"></dicta-input>`,
+  );
+
+  await expect(page.locator("#both").getByRole("textbox")).toHaveAttribute(
+    "aria-keyshortcuts",
+    "Control+Shift+Space",
+  );
+  await expect(
+    page.locator("#both").getByRole("button", { name: "Speak" }),
+  ).toHaveAttribute("title", "Speak (Ctrl+Shift+Space)");
+  await expect(page.locator("#text").getByRole("textbox")).not.toHaveAttribute(
+    "aria-keyshortcuts",
+  );
+});
+
+test("shortcut: does nothing without voice input", async ({ page }) => {
+  await open(page, 'inputs="text"');
+  const field = page.getByRole("textbox");
+  await field.focus();
+
+  await page.keyboard.press("Control+Shift+Space");
+  await page.waitForTimeout(200);
+
+  expect(server.connections).toHaveLength(0);
+});
+
+test("shortcut: keeps the browser from handling the key", async ({ page }) => {
+  await open(page, 'voice-listen-modes="toggle"');
+  await page.getByRole("textbox").focus();
+  await page.evaluate(() => {
+    window.addEventListener("keydown", (event) => {
+      (window as unknown as { prevented: boolean }).prevented =
+        event.defaultPrevented;
+    });
+  });
+
+  await page.keyboard.press("Control+Shift+Space");
+
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { prevented: boolean }).prevented,
+    ),
+  ).toBe(true);
+});

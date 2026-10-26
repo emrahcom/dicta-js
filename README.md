@@ -69,6 +69,9 @@ The event detail has two fields:
   With two modes, the user can switch between them next to the button. The
   browser remembers the choice.
 
+  In the text field, Ctrl+Shift+Space works like the button. The user can speak
+  without leaving the field.
+
 - `voice-submit-modes`: what happens with the spoken text. The first one is used
   until the user chooses. Without this attribute, it is `review auto`.
   - `review`: the text goes into the text field, where the user is typing. The
