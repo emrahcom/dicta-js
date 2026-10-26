@@ -14,6 +14,9 @@ const LISTEN_MODE_NAMES: Record<ListenMode, string> = {
 };
 // The user's choice of listen mode, kept in the browser.
 const LISTEN_MODE_STORAGE_KEY = "dicta-voice-listen-mode";
+const SUBMIT_MODES = ["review", "auto"] as const;
+type SubmitMode = (typeof SUBMIT_MODES)[number];
+const DEFAULT_SUBMIT_MODES = "review auto";
 // Audio captured after the user ends an utterance, so the last word is not cut.
 const POST_ROLL_MS = 300;
 // A toggle session without speech for this long ends by itself.
@@ -64,6 +67,16 @@ const STYLE = `
   }
 `;
 
+type Input = "text" | "voice" | "mixed";
+
+// The modes named in an attribute's value, in its order.
+function allowedModes<T extends string>(value: string, modes: readonly T[]) {
+  const words = value.split(/\s+/);
+  return modes
+    .filter((mode) => words.includes(mode))
+    .sort((a, b) => words.indexOf(a) - words.indexOf(b));
+}
+
 const MICROPHONE_ICON = `<svg viewBox="0 0 24 24" width="24" height="24"
   aria-hidden="true" fill="currentColor"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0
   0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7
@@ -75,6 +88,7 @@ export class DictaInput extends HTMLElement {
     "label",
     "placeholder",
     "voice-listen-modes",
+    "voice-submit-modes",
   ];
 
   // Set by the application; see specs/architecture.md (Element).
@@ -101,6 +115,13 @@ export class DictaInput extends HTMLElement {
   #ending = false;
   // The last voice final with text since the listening started.
   #heard: string | undefined;
+  // Whether voice finals go into the field, fixed for each listening.
+  #review = false;
+  // In review, the field's text around the interim text while it is shown.
+  #interim: { before: string; after: string } | undefined;
+  // What went into the field since it was last submitted or empty.
+  #typed = false;
+  #spoken = false;
 
   constructor() {
     super();
@@ -121,7 +142,11 @@ export class DictaInput extends HTMLElement {
     this.#field.rows = 1;
     this.#field.part.add("field");
     this.#field.addEventListener("keydown", (event) => this.#onFieldKey(event));
-    this.#field.addEventListener("input", () => this.#fit());
+    this.#field.addEventListener("input", () => {
+      this.#typed = this.#field.value !== "";
+      this.#spoken &&= this.#typed;
+      this.#fit();
+    });
     this.#button = document.createElement("button");
     this.#button.type = "button";
     this.#button.part.add("button");
@@ -214,12 +239,16 @@ export class DictaInput extends HTMLElement {
     }
     event.preventDefault();
     const text = this.#field.value.trim();
-    if (!text) {
+    if (!text || this.#interim) {
       return;
     }
+    const input =
+      this.#typed && this.#spoken ? "mixed" : this.#spoken ? "voice" : "text";
     this.#field.value = "";
+    this.#typed = false;
+    this.#spoken = false;
     this.#fit();
-    this.#sendText(text, "text");
+    this.#sendText(text, input);
   }
 
   // Grows the field with its content; max-height stops it at 5 lines.
@@ -230,7 +259,7 @@ export class DictaInput extends HTMLElement {
     field.style.height = `${field.scrollHeight + borders}px`;
   }
 
-  #sendText(text: string, input: "text" | "voice") {
+  #sendText(text: string, input: Input) {
     this.dispatchEvent(
       new CustomEvent("dicta-text", {
         detail: { text, input },
@@ -242,13 +271,23 @@ export class DictaInput extends HTMLElement {
 
   // The modes the integrator allows, the first one the default.
   #allowedListenModes(): ListenMode[] {
-    const words = (
-      this.getAttribute("voice-listen-modes") ?? DEFAULT_LISTEN_MODES
-    ).split(/\s+/);
-    const allowed = LISTEN_MODES.filter((mode) => words.includes(mode)).sort(
-      (a, b) => words.indexOf(a) - words.indexOf(b),
+    const allowed = allowedModes(
+      this.getAttribute("voice-listen-modes") ?? DEFAULT_LISTEN_MODES,
+      LISTEN_MODES,
     );
     return allowed.length > 0 ? allowed : ["hold"];
+  }
+
+  // Without text input there is no field to review in.
+  #submitMode(): SubmitMode {
+    if (this.#field.hidden) {
+      return "auto";
+    }
+    const allowed = allowedModes(
+      this.getAttribute("voice-submit-modes") ?? DEFAULT_SUBMIT_MODES,
+      SUBMIT_MODES,
+    );
+    return allowed[0] ?? "review";
   }
 
   // The user's choice when it is allowed, otherwise the default.
@@ -291,6 +330,7 @@ export class DictaInput extends HTMLElement {
     }
     this.#listening = true;
     this.#heard = undefined;
+    this.#review = this.#submitMode() === "review";
     this.#button.setAttribute("aria-pressed", "true");
     this.#listenModeSelect.disabled = true;
     this.#setStatus("Listening");
@@ -379,16 +419,60 @@ export class DictaInput extends HTMLElement {
   }
 
   #onTranscript({ text, final }: Transcript) {
-    if (!final) {
-      this.#caption.textContent = text;
+    if (this.#review) {
+      this.#showInField(text, final);
+    } else {
+      this.#caption.textContent = final ? "" : text;
+    }
+    if (!final || !text) {
       return;
     }
-    this.#caption.textContent = "";
-    if (text) {
-      // While listening goes on, the status keeps saying so.
-      this.#heard = text;
-      this.#setStatus(this.#listening ? `Listening. Heard: ${text}` : text);
+    // While listening goes on, the status keeps saying so.
+    this.#heard = text;
+    this.#setStatus(this.#listening ? `Listening. Heard: ${text}` : text);
+    if (!this.#review) {
       this.#sendText(text, "voice");
+    }
+  }
+
+  // Shows the text at the cursor, in place of the selection, until the final.
+  #showInField(text: string, final: boolean) {
+    // Nothing to show or remove, so a selection stays as it is.
+    if (!text && !this.#interim) {
+      return;
+    }
+    const field = this.#field;
+    this.#interim ??= {
+      before: field.value.slice(0, field.selectionStart),
+      after: field.value.slice(field.selectionEnd),
+    };
+    let { before, after } = this.#interim;
+    if (text) {
+      if (before && !/\s$/.test(before)) {
+        before += " ";
+      }
+      if (after && !/^\s/.test(after)) {
+        after = ` ${after}`;
+      }
+    }
+    field.value = before + text + after;
+    field.readOnly = !final;
+    if (final) {
+      this.#interim = undefined;
+      this.#spoken ||= text !== "";
+      const cursor = (before + text).length;
+      field.setSelectionRange(cursor, cursor);
+    }
+    this.#fit();
+  }
+
+  // Puts back the field's text without the interim text.
+  #removeInterim() {
+    if (this.#interim) {
+      this.#field.value = this.#interim.before + this.#interim.after;
+      this.#field.readOnly = false;
+      this.#interim = undefined;
+      this.#fit();
     }
   }
 
@@ -403,6 +487,7 @@ export class DictaInput extends HTMLElement {
     this.#button.setAttribute("aria-pressed", "false");
     this.#listenModeSelect.disabled = false;
     this.#caption.textContent = "";
+    this.#removeInterim();
   }
 
   #setStatus(text: string) {

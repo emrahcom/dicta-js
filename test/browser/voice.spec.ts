@@ -119,10 +119,13 @@ test("toggle: a press starts and the next press ends", async ({ page }) => {
   await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
 });
 
-test("shows interim text and sends finals with text as voice events", async ({
+test("auto: shows interim text and sends finals with text as voice events", async ({
   page,
 }) => {
-  const button = await open(page, 'voice-listen-modes="toggle"');
+  const button = await open(
+    page,
+    'voice-listen-modes="toggle" voice-submit-modes="auto"',
+  );
   const caption = page.locator("dicta-input .caption");
   await button.click();
   await untilFrames(1);
@@ -158,10 +161,13 @@ test("opens a new connection on the next press after a close", async ({
   await expect.poll(() => server.connections[1]!.frames).toBeGreaterThan(0);
 });
 
-test("stops and clears the caption when the connection closes", async ({
+test("auto: stops and clears the caption when the connection closes", async ({
   page,
 }) => {
-  const button = await open(page, 'voice-listen-modes="toggle"');
+  const button = await open(
+    page,
+    'voice-listen-modes="toggle" voice-submit-modes="auto"',
+  );
   await button.click();
   await untilFrames(1);
   transcript("add a", false);
@@ -211,7 +217,8 @@ test("lets the page style and hide the caption and the status line", async ({
       dicta-input::part(caption) { color: rgb(255, 0, 0); }
       dicta-input::part(status) { display: none; }
     </style>
-    <dicta-input server="${server.url}" voice-listen-modes="toggle">
+    <dicta-input server="${server.url}" voice-listen-modes="toggle"
+      voice-submit-modes="auto">
     </dicta-input>`,
   );
   const button = page.getByRole("button", { name: "Speak" });
@@ -367,4 +374,141 @@ test("uses the mode the user picks", async ({ page }) => {
   await button.click();
 
   await expect(button).toHaveAttribute("aria-pressed", "false");
+});
+
+// Opens a toggle element in review, the default, with the given text in the
+// field and the cursor or selection from `start` to `end`, then starts
+// listening.
+async function startReview(page: Page, text = "", start = 0, end = start) {
+  const button = await open(page, 'voice-listen-modes="toggle"');
+  const field = page.getByRole("textbox");
+  await field.fill(text);
+  await field.evaluate(
+    (element: HTMLTextAreaElement, [from, to]) =>
+      element.setSelectionRange(from!, to!),
+    [start, end],
+  );
+  await button.click();
+  await untilFrames(1);
+  return { button, field };
+}
+
+test("review: shows the text at the cursor and keeps the final there", async ({
+  page,
+}) => {
+  const { field } = await startReview(page, "hello world", 5);
+
+  transcript("add a", false);
+  await expect(field).toHaveValue("hello add a world");
+  await expect(field).toHaveJSProperty("readOnly", true);
+  transcript("add a note", true);
+
+  await expect(field).toHaveValue("hello add a note world");
+  await expect(field).toHaveJSProperty("readOnly", false);
+  await expect(field).toHaveJSProperty("selectionStart", 16);
+  expect(await events(page)).toEqual([]);
+});
+
+test("review: replaces the selected text", async ({ page }) => {
+  const { field } = await startReview(page, "one two three", 4, 7);
+
+  transcript("four", true);
+
+  await expect(field).toHaveValue("one four three");
+});
+
+test("review: an empty final removes the interim text", async ({ page }) => {
+  const { field } = await startReview(page, "hello", 5);
+
+  transcript("add", false);
+  await expect(field).toHaveValue("hello add");
+  transcript("", true);
+
+  await expect(field).toHaveValue("hello");
+  await expect(field).toHaveJSProperty("readOnly", false);
+});
+
+test("review: Enter does not submit while interim text is shown", async ({
+  page,
+}) => {
+  const { field } = await startReview(page);
+
+  transcript("add a", false);
+  await expect(field).toHaveValue("add a");
+  await field.press("Enter");
+
+  expect(await events(page)).toEqual([]);
+  await expect(field).toHaveValue("add a");
+});
+
+test("review: adds each final of a toggle session", async ({ page }) => {
+  const { field } = await startReview(page);
+
+  transcript("add a note", true);
+  await expect(field).toHaveValue("add a note");
+  transcript("about lunch", true);
+
+  await expect(field).toHaveValue("add a note about lunch");
+});
+
+test("review: a close removes the interim text", async ({ page }) => {
+  const { field } = await startReview(page, "hello", 5);
+
+  transcript("add", false);
+  await expect(field).toHaveValue("hello add");
+  server.connections[0]!.socket.close(1011);
+
+  await expect(field).toHaveValue("hello");
+  await expect(field).toHaveJSProperty("readOnly", false);
+});
+
+test("review: submits text, voice or mixed by where it came from", async ({
+  page,
+}) => {
+  const { field } = await startReview(page);
+
+  transcript("add a note", true);
+  await expect(field).toHaveValue("add a note");
+  await field.press("Enter");
+  await field.pressSequentially("typed");
+  await field.press("Enter");
+  transcript("add a note", true);
+  await expect(field).toHaveValue("add a note");
+  await field.pressSequentially(" now");
+  await field.press("Enter");
+
+  expect(await events(page)).toEqual([
+    { text: "add a note", input: "voice" },
+    { text: "typed", input: "text" },
+    { text: "add a note now", input: "mixed" },
+  ]);
+});
+
+test("review: forgets where the text came from when the field is emptied", async ({
+  page,
+}) => {
+  const { field } = await startReview(page);
+
+  transcript("add a note", true);
+  await expect(field).toHaveValue("add a note");
+  await field.fill("");
+  await field.pressSequentially("typed");
+  await field.press("Enter");
+
+  expect(await events(page)).toEqual([{ text: "typed", input: "text" }]);
+});
+
+test("is always auto without text input", async ({ page }) => {
+  const button = await open(
+    page,
+    'inputs="voice" voice-listen-modes="toggle" voice-submit-modes="review"',
+  );
+  await button.click();
+  await untilFrames(1);
+
+  transcript("add a note", true);
+
+  await expect
+    .poll(() => events(page))
+    .toEqual([{ text: "add a note", input: "voice" }]);
 });

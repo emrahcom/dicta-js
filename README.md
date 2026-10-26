@@ -11,8 +11,9 @@ You put one element on your page: `<dicta-input>`. It has a text field and a
 microphone button.
 
 - When the user types and presses Enter, you get the text.
-- When the user speaks, the element sends the audio to dicta-server. You get the
-  text when the user stops.
+- When the user speaks, the element sends the audio to dicta-server. The text
+  goes into the text field, and the user presses Enter to send it. Or you get it
+  at once when the user stops. See `voice-submit-modes`.
 
 Typed text stays in the browser. Only audio goes to the server.
 
@@ -51,7 +52,8 @@ The result is in `dist/`. It has no dependencies.
 The event detail has two fields:
 
 - `text`: what the user typed or said.
-- `input`: `text` or `voice`.
+- `input`: `text` (typed), `voice` (spoken) or `mixed` (both, for example spoken
+  and then edited).
 
 ## Attributes
 
@@ -67,6 +69,14 @@ The event detail has two fields:
   With two modes, the user can switch between them next to the button. The
   browser remembers the choice.
 
+- `voice-submit-modes`: what happens with the spoken text. The first one is
+  used. Without this attribute, it is `review auto`.
+  - `review`: the text goes into the text field, where the user is typing. The
+    user can change it and presses Enter to send it.
+  - `auto`: the text is sent when the user stops speaking.
+
+  Without the text field, it is always `auto`.
+
 - `label`: the name of the text field for screen readers.
 - `placeholder`: the hint in the empty text field.
 - `lang`: the language the user speaks, for example `de` or `en-US`.
@@ -79,7 +89,7 @@ hold a button.
 
 You can style each part of the element with CSS:
 
-- `caption`: the text the user is saying, shown above the text field.
+- `caption`: the text the user is saying, shown above the text field in `auto`.
 - `field`: the text field.
 - `button`: the microphone button.
 - `voice-listen-mode`: the switch between the listen modes.
