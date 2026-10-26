@@ -186,8 +186,12 @@ test("shows the button only when inputs includes voice", async ({ page }) => {
      <dicta-input id="text" inputs="text"></dicta-input>`,
   );
 
-  await expect(page.locator("#voice").getByRole("button")).toBeVisible();
-  await expect(page.locator("#text").getByRole("button")).toBeHidden();
+  await expect(
+    page.locator("#voice").getByRole("button", { name: "Speak" }),
+  ).toBeVisible();
+  await expect(
+    page.locator("#text").getByRole("button", { name: "Speak" }),
+  ).toBeHidden();
 });
 
 test("shows Listening while speaking and the final after it", async ({
@@ -605,4 +609,36 @@ test("sends at once when the user turns review off", async ({ page }) => {
     .poll(() => events(page))
     .toEqual([{ text: "add a note", input: "voice" }]);
   await expect(page.getByRole("textbox")).toHaveValue("");
+});
+
+test("review: a click on the button leaves the focus and cursor in the field", async ({
+  page,
+}) => {
+  const button = await open(page, 'voice-listen-modes="toggle"');
+  const field = page.getByRole("textbox");
+  await field.fill("hello world");
+  await field.evaluate((element: HTMLTextAreaElement) =>
+    element.setSelectionRange(5, 5),
+  );
+
+  await button.click();
+  await untilFrames(1);
+  transcript("add a note", true);
+
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue("hello add a note world");
+  await expect(field).toHaveJSProperty("selectionStart", 16);
+});
+
+test("review: Send does nothing while interim text is shown", async ({
+  page,
+}) => {
+  const { field } = await startReview(page);
+
+  transcript("add a", false);
+  await expect(field).toHaveValue("add a");
+  await page.getByRole("button", { name: "Send" }).click();
+
+  expect(await events(page)).toEqual([]);
+  await expect(field).toHaveValue("add a");
 });

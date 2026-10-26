@@ -109,3 +109,58 @@ test("grows up to 5 lines, then scrolls", async ({ page }) => {
     ),
   ).toBe(true);
 });
+
+test("submits the text with the Send button like Enter", async ({ page }) => {
+  await openPage(page, "<dicta-input></dicta-input>");
+  const field = page.getByRole("textbox");
+
+  await field.fill("  add a note  ");
+  await page.getByRole("button", { name: "Send" }).click();
+
+  expect(await events(page)).toEqual([{ text: "add a note", input: "text" }]);
+  await expect(field).toHaveValue("");
+  // The focus stays in the field, ready for the next text.
+  await expect(field).toBeFocused();
+});
+
+test("shows the Send button only with text input", async ({ page }) => {
+  await openPage(
+    page,
+    `<dicta-input id="text" inputs="text"></dicta-input>
+     <dicta-input id="voice" inputs="voice"></dicta-input>`,
+  );
+
+  await expect(
+    page.locator("#text").getByRole("button", { name: "Send" }),
+  ).toBeVisible();
+  await expect(
+    page.locator("#voice").getByRole("button", { name: "Send" }),
+  ).toBeHidden();
+});
+
+test("lets the page style the Send button", async ({ page }) => {
+  await openPage(
+    page,
+    `<style>
+      dicta-input::part(send) { color: rgb(255, 0, 0); }
+    </style>
+    <dicta-input></dicta-input>`,
+  );
+
+  await expect(page.getByRole("button", { name: "Send" })).toHaveCSS(
+    "color",
+    "rgb(255, 0, 0)",
+  );
+});
+
+test("reaches the Send button by keyboard", async ({ page }) => {
+  await openPage(page, '<dicta-input inputs="text"></dicta-input>');
+  const field = page.getByRole("textbox");
+
+  await field.fill("add a note");
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Send" })).toBeFocused();
+  await page.keyboard.press("Enter");
+
+  expect(await events(page)).toEqual([{ text: "add a note", input: "text" }]);
+});

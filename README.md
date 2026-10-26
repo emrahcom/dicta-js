@@ -7,13 +7,13 @@ Early development. Not ready for use.
 
 ## How it works
 
-You put one element on your page: `<dicta-input>`. It has a text field and a
-microphone button.
+You put one element on your page: `<dicta-input>`. It has a text field, a
+microphone button and a Send button.
 
-- When the user types and presses Enter, you get the text.
+- When the user types and presses Enter or Send, you get the text.
 - When the user speaks, the element sends the audio to dicta-server. The text
-  goes into the text field, and the user presses Enter to send it. Or you get it
-  at once when the user stops. See `voice-submit-modes`.
+  goes into the text field, and the user presses Enter or Send to send it. Or
+  you get it at once when the user stops. See `voice-submit-modes`.
 
 Typed text stays in the browser. Only audio goes to the server.
 
@@ -72,7 +72,7 @@ The event detail has two fields:
 - `voice-submit-modes`: what happens with the spoken text. The first one is used
   until the user chooses. Without this attribute, it is `review auto`.
   - `review`: the text goes into the text field, where the user is typing. The
-    user can change it and presses Enter to send it.
+    user can change it and presses Enter or Send to send it.
   - `auto`: the text is sent when the user stops speaking.
 
   With two modes, the user can switch with a "Review before sending" checkbox.
@@ -93,6 +93,7 @@ You can style each part of the element with CSS:
 - `caption`: the text the user is saying, shown above the text field in `auto`.
 - `field`: the text field.
 - `button`: the microphone button.
+- `send`: the Send button.
 - `voice-listen-mode`: the switch between the listen modes.
 - `voice-submit-mode`: the "Review before sending" checkbox with its label.
 - `status`: the line under the element, for example "Listening".

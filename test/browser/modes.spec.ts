@@ -27,7 +27,9 @@ test("shows no switch with one mode or no valid mode", async ({ page }) => {
      <dicta-input id="none" voice-listen-modes="other"></dicta-input>`,
   );
 
-  await expect(page.locator("#one").getByRole("button")).toBeVisible();
+  await expect(
+    page.locator("#one").getByRole("button", { name: "Speak" }),
+  ).toBeVisible();
   await expect(page.locator("#one").getByRole("combobox")).toBeHidden();
   await expect(page.locator("#none").getByRole("combobox")).toBeHidden();
 });

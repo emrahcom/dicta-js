@@ -128,6 +128,16 @@ const MICROPHONE_ICON = `<svg viewBox="0 0 24 24" width="24" height="24"
   0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7
   7 0 0 0 19 11h-2z"/></svg>`;
 
+const SEND_ICON = `<svg viewBox="0 0 24 24" width="24" height="24"
+  aria-hidden="true" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15
+  2z"/></svg>`;
+
+// A pointer press on a button keeps the focus where it is, so the cursor stays
+// in the text field.
+function keepFocus(button: HTMLButtonElement) {
+  button.addEventListener("mousedown", (event) => event.preventDefault());
+}
+
 export class DictaInput extends HTMLElement {
   static observedAttributes = [
     "inputs",
@@ -150,6 +160,7 @@ export class DictaInput extends HTMLElement {
   #announcer: HTMLDivElement;
   #field: HTMLTextAreaElement;
   #button: HTMLButtonElement;
+  #sendButton: HTMLButtonElement;
   #listenModeSelect: HTMLSelectElement;
   // The mode the user chose here, for when storage fails.
   #chosenListenMode: string | undefined;
@@ -205,6 +216,7 @@ export class DictaInput extends HTMLElement {
     this.#button.innerHTML = MICROPHONE_ICON;
     this.#button.setAttribute("aria-label", "Speak");
     this.#button.setAttribute("aria-pressed", "false");
+    keepFocus(this.#button);
     this.#button.addEventListener("pointerdown", (event) => {
       this.#button.setPointerCapture(event.pointerId);
       this.#press();
@@ -225,6 +237,13 @@ export class DictaInput extends HTMLElement {
         this.#release();
       }
     });
+    this.#sendButton = document.createElement("button");
+    this.#sendButton.type = "button";
+    this.#sendButton.part.add("send");
+    this.#sendButton.innerHTML = SEND_ICON;
+    this.#sendButton.setAttribute("aria-label", "Send");
+    keepFocus(this.#sendButton);
+    this.#sendButton.addEventListener("click", () => this.#submit());
     const row = document.createElement("div");
     row.className = "row";
     this.#listenModeSelect = document.createElement("select");
@@ -246,7 +265,12 @@ export class DictaInput extends HTMLElement {
     this.#submitModeSwitch = document.createElement("label");
     this.#submitModeSwitch.part.add("voice-submit-mode");
     this.#submitModeSwitch.append(this.#reviewBox, " Review before sending");
-    row.append(this.#field, this.#button, this.#listenModeSelect);
+    row.append(
+      this.#field,
+      this.#button,
+      this.#sendButton,
+      this.#listenModeSelect,
+    );
     root.append(
       style,
       this.#caption,
@@ -276,6 +300,7 @@ export class DictaInput extends HTMLElement {
     const inputs = (this.getAttribute("inputs") ?? DEFAULT_INPUTS).split(/\s+/);
     this.#field.hidden = !inputs.includes("text");
     this.#button.hidden = !inputs.includes("voice");
+    this.#sendButton.hidden = this.#field.hidden;
     this.#listenModeSelect.hidden =
       this.#button.hidden || this.#allowedListenModes().length < 2;
     this.#listenModeSelect.value = this.#listenMode();
@@ -304,6 +329,10 @@ export class DictaInput extends HTMLElement {
       return;
     }
     event.preventDefault();
+    this.#submit();
+  }
+
+  #submit() {
     const text = this.#field.value.trim();
     if (!text || this.#interim) {
       return;
