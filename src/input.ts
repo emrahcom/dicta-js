@@ -165,6 +165,8 @@ export class DictaInput extends HTMLElement {
   #sendButton: HTMLButtonElement;
   // Ctrl+Shift+Space is held down in the text field.
   #shortcutDown = false;
+  // A pointer press on the button, whose click is then ignored.
+  #pointerPressed = false;
   #listenModeSelect: HTMLSelectElement;
   // The mode the user chose here, for when storage fails.
   #chosenListenMode: string | undefined;
@@ -230,10 +232,23 @@ export class DictaInput extends HTMLElement {
     keepFocus(this.#button);
     this.#button.addEventListener("pointerdown", (event) => {
       this.#button.setPointerCapture(event.pointerId);
+      this.#pointerPressed = true;
       this.#press();
     });
     this.#button.addEventListener("pointerup", () => this.#release());
-    this.#button.addEventListener("pointercancel", () => this.#release());
+    this.#button.addEventListener("pointercancel", () => {
+      this.#pointerPressed = false;
+      this.#release();
+    });
+    // A click alone comes from a screen reader, or from the page's code; it
+    // cannot be held, so it works as a toggle press.
+    this.#button.addEventListener("click", () => {
+      if (this.#pointerPressed) {
+        this.#pointerPressed = false;
+      } else {
+        this.#press(true);
+      }
+    });
     this.#button.addEventListener("keydown", (event) => {
       if (event.key === " " || event.key === "Enter") {
         event.preventDefault();
@@ -444,9 +459,9 @@ export class DictaInput extends HTMLElement {
 
   // While listening, the mode of the current utterance or session counts: a
   // toggle session has a detector.
-  #press() {
+  #press(toggle = this.#listenMode() === "toggle") {
     if (!this.#listening) {
-      this.#start();
+      this.#start(toggle);
     } else if (this.#detector) {
       void this.#end();
     }
@@ -459,7 +474,7 @@ export class DictaInput extends HTMLElement {
   }
 
   // Starts a hold utterance or a toggle session.
-  #start() {
+  #start(toggle: boolean) {
     if (this.#listening || this.#ending) {
       return;
     }
@@ -483,8 +498,7 @@ export class DictaInput extends HTMLElement {
     }
     const connection = this.#connection;
     // In toggle, the detector decides what is sent and where utterances end.
-    const detector =
-      this.#listenMode() === "toggle" ? new VoiceDetector() : undefined;
+    const detector = toggle ? new VoiceDetector() : undefined;
     this.#detector = detector;
     const onFrame = (frame: ArrayBuffer) => {
       if (!detector) {

@@ -730,3 +730,34 @@ test("shortcut: keeps the browser from handling the key", async ({ page }) => {
     ),
   ).toBe(true);
 });
+
+test("a click alone works as a toggle press, even in hold", async ({
+  page,
+}) => {
+  const button = await open(page, 'voice-listen-modes="hold"');
+  // As a screen reader presses a button: a click with no pointer press.
+  const clickAlone = () =>
+    button.evaluate((element: HTMLElement) => element.click());
+
+  await clickAlone();
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+  await untilFrames(5);
+  // The fake microphone's silence ends the utterance, as in toggle.
+  await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+  await clickAlone();
+
+  await expect(button).toHaveAttribute("aria-pressed", "false");
+});
+
+test("a pointer press in hold is not also taken as a click", async ({
+  page,
+}) => {
+  const button = await open(page, 'voice-listen-modes="hold"');
+
+  await button.click();
+  await expect.poll(() => server.connections[0]?.ends.length).toBe(1);
+  await page.waitForTimeout(200);
+
+  await expect(button).toHaveAttribute("aria-pressed", "false");
+});
