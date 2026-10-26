@@ -65,10 +65,12 @@ Importing the module defines `<dicta-input>`.
   - `voice-submit-mode`: the "Review before sending" checkbox.
   - `status`: the visible status line.
 
-  Pseudo-classes work on parts, for example `::part(button):focus-visible`, so
-  no CSS custom properties are needed. For example,
-  `dicta-input::part(status) { display: none; }` leaves only the button and the
-  text field.
+  For example, `dicta-input::part(status) { display: none; }` leaves only the
+  button and the text field. Pseudo-classes work on parts, for example
+  `::part(button):focus-visible`, so no CSS custom properties are needed.
+  Attribute selectors do not work on parts, so while the element listens it has
+  the custom state `listening`, and `dicta-input:state(listening)::part(button)`
+  styles the pressed button.
 
 ## Text input
 
