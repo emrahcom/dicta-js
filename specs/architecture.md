@@ -58,25 +58,30 @@ Importing the module defines `<dicta-input>`.
 
 ## Voice input
 
-Push-to-talk only for now, in two modes.
+Two modes: push-to-talk, and hands-free between two presses.
 
 - A microphone button, shown when `inputs` includes `voice`. It works with the
   pointer, and with Space or Enter while it has focus.
 - `hold`: the user holds the button while speaking; releasing it ends the
   utterance.
-- `toggle`: a press starts the utterance and the next press ends it, for users
-  who cannot hold a button or a key.
-- At the start of each utterance the element asks for the microphone, so the
-  browser asks for permission the first time. It stops the microphone after each
-  utterance, so the browser's recording indicator is on only while the user
-  talks.
+- `toggle`: a press starts a listening session and the next press ends it, so
+  the user does not have to hold anything. During the session the element finds
+  each utterance itself with voice activity detection: speech starts an
+  utterance, including the 300 ms of audio before it, and 800 ms of silence ends
+  it and sends `end`. Silence is not sent. A press during speech ends that
+  utterance as in `hold`. The session also ends after 5 minutes without speech.
+  Background speech becomes text too; the user decides whether to use this mode.
+- At the start of each `hold` utterance, or of a `toggle` session, the element
+  asks for the microphone, so the browser asks for permission the first time. It
+  stops the microphone after each utterance or session, so the browser's
+  recording indicator is on only while the element listens.
 - Audio is captured at the microphone's own rate and converted in an
   AudioWorklet to the contract's format: 16 kHz, mono, 16-bit. It is sent in
   frames of 50 ms. Converting in the element works the same in every supported
   browser; Firefox cannot open audio processing at a rate other than the
   microphone's.
-- After the user ends the utterance, audio is captured for another 300 ms, so
-  the last word is not cut, and then `end` is sent.
+- When the user ends an utterance with the button, audio is captured for another
+  300 ms, so the last word is not cut, and then `end` is sent.
 - While the user speaks, the interim text is shown in a caption above the text
   field, so it does not touch text the user has typed. The final is sent as
   `dicta-text` with `input: "voice"`, and the caption is cleared.
@@ -100,7 +105,8 @@ The element meets WCAG 2.2 level AA.
 
 - Everything works by keyboard, with a visible focus indicator.
 - The text field and the microphone button have accessible names. The button has
-  `aria-pressed="true"` while the user speaks.
+  `aria-pressed="true"` while the element listens: during a `hold` utterance, or
+  during a whole `toggle` session.
 - Status changes (listening, voice failed) and each voice final are announced
   through a status region. Interim text is not announced, because it changes
   many times a second.

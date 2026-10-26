@@ -27,13 +27,11 @@ application the resulting text.
 ## First version
 
 - The input element. An input the integrator leaves out is not shown.
-- Voice by push-to-talk: the user holds the microphone button while speaking, or
-  presses it once to start and once to stop.
+- Voice by push-to-talk, holding the microphone button while speaking, or
+  hands-free between two presses of the button, with voice activity detection
+  finding each utterance.
 - Interim text while speaking, and the final text delivered to the application.
 - Reconnect after a connection failure, with a new token when needed.
-
-Later, dicta-js may add hands-free voice input (voice activity detection) and
-let users choose among the inputs and voice modes the integrator allows.
 
 Turning the text into the application's actions (tool calls) is not part of
 dicta-js. `dicta-js` and `dicta-server` are complete without it: the application
