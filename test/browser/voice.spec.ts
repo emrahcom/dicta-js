@@ -761,3 +761,69 @@ test("a pointer press in hold is not also taken as a click", async ({
 
   await expect(button).toHaveAttribute("aria-pressed", "false");
 });
+
+// Opens a toggle element with a fake clock and a silent microphone, so a
+// session can start and stop at once, with no post-roll.
+async function openIdle(page: Page) {
+  await page.clock.install();
+  const button = await open(page, 'voice-listen-modes="toggle"');
+  await page.evaluate(() => {
+    navigator.mediaDevices.getUserMedia = async () =>
+      new AudioContext().createMediaStreamDestination().stream;
+  });
+  const listenOnce = async () => {
+    await button.click();
+    await expect(button).toHaveAttribute("aria-pressed", "true");
+    await button.click();
+    await expect(button).toHaveAttribute("aria-pressed", "false");
+  };
+  return { button, listenOnce };
+}
+
+const isOpen = (index: number) =>
+  server.connections[index]!.socket.readyState ===
+  server.connections[index]!.socket.OPEN;
+
+test("closes the connection one minute after listening", async ({ page }) => {
+  const { listenOnce } = await openIdle(page);
+  await listenOnce();
+  await expect.poll(() => server.connections.length).toBe(1);
+
+  await page.clock.fastForward("00:59");
+  expect(isOpen(0)).toBe(true);
+  await page.clock.fastForward("00:02");
+
+  await expect.poll(() => isOpen(0)).toBe(false);
+  await expect(page.getByRole("status")).not.toHaveText("Voice failed");
+});
+
+test("keeps the connection while the user listens again", async ({ page }) => {
+  const { button, listenOnce } = await openIdle(page);
+  await listenOnce();
+  await expect.poll(() => server.connections.length).toBe(1);
+
+  await page.clock.fastForward("00:40");
+  await button.click();
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+  await page.clock.fastForward("00:40");
+  // Time for a close to reach the server.
+  await page.waitForTimeout(200);
+
+  expect(server.connections).toHaveLength(1);
+  expect(isOpen(0)).toBe(true);
+});
+
+test("opens a new connection on the press after an idle close", async ({
+  page,
+}) => {
+  const { button, listenOnce } = await openIdle(page);
+  await listenOnce();
+  await expect.poll(() => server.connections.length).toBe(1);
+  await page.clock.fastForward("01:01");
+  await expect.poll(() => isOpen(0)).toBe(false);
+
+  await button.click();
+
+  await expect.poll(() => server.connections.length).toBe(2);
+  await expect(page.getByRole("status")).toHaveText("Listening");
+});

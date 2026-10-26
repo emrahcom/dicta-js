@@ -25,6 +25,8 @@ const POST_ROLL_MS = 300;
 const SHORTCUT = "Control+Shift+Space";
 // A toggle session without speech for this long ends by itself.
 const IDLE_SESSION_MS = 5 * 60 * 1000;
+// A connection not used for this long after listening is closed.
+const IDLE_CONNECTION_MS = 60 * 1000;
 
 const STYLE = `
   :host {
@@ -178,6 +180,7 @@ export class DictaInput extends HTMLElement {
   #capture: Promise<Capture> | undefined;
   #detector: VoiceDetector | undefined;
   #idleTimer: ReturnType<typeof setTimeout> | undefined;
+  #closeTimer: ReturnType<typeof setTimeout> | undefined;
   // During a hold utterance or a whole toggle session.
   #listening = false;
   #ending = false;
@@ -313,6 +316,7 @@ export class DictaInput extends HTMLElement {
 
   disconnectedCallback() {
     clearTimeout(this.#idleTimer);
+    clearTimeout(this.#closeTimer);
     this.#connection?.close();
     this.#connection = undefined;
     this.#stopCapture();
@@ -479,6 +483,7 @@ export class DictaInput extends HTMLElement {
       return;
     }
     this.#listening = true;
+    clearTimeout(this.#closeTimer);
     this.#heard = undefined;
     this.#review = this.#submitMode() === "review";
     this.#showListening(true);
@@ -533,6 +538,7 @@ export class DictaInput extends HTMLElement {
     this.#listening = false;
     this.#ending = true;
     this.#showListening(false);
+    this.#closeLater();
     clearTimeout(this.#idleTimer);
     const capture = this.#capture;
     const connection = this.#connection;
@@ -558,6 +564,15 @@ export class DictaInput extends HTMLElement {
       this.#capture = undefined;
     }
     this.#ending = false;
+  }
+
+  // An idle connection holds a speech-to-text session open on the server.
+  #closeLater() {
+    clearTimeout(this.#closeTimer);
+    this.#closeTimer = setTimeout(
+      () => this.#connection?.close(),
+      IDLE_CONNECTION_MS,
+    );
   }
 
   #restartIdleTimer() {
@@ -632,6 +647,7 @@ export class DictaInput extends HTMLElement {
     this.#stopCapture();
     this.#listening = false;
     this.#showListening(false);
+    this.#closeLater();
     this.#caption.textContent = "";
     this.#removeInterim();
   }
