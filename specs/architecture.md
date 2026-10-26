@@ -122,10 +122,6 @@ Importing the module defines `<dicta-input>`.
 - When the element is removed from the page, it stops listening, closes the
   connection and resets its state, as after a failure but without showing that
   voice failed.
-- After a failure, or a removal, the element releases the microphone and its
-  audio processing before it listens again: a press meanwhile is kept and starts
-  listening once they are released, as during the ending of an utterance. WebKit
-  refuses new audio while the old one is still being released.
 
 ### Audio
 
