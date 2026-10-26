@@ -60,8 +60,10 @@ Importing the module defines `<dicta-input>`.
   - `field`: the text field.
   - `button`: the microphone button.
   - `send`: the Send button.
-  - `voice-listen-mode`: the listen mode switch.
-  - `voice-submit-mode`: the "Review before sending" checkbox.
+  - `voice-settings`: the arrow that opens the voice settings.
+  - `voice-listen-mode`: the listen mode choice in the voice settings.
+  - `voice-submit-mode`: the "Review before sending" checkbox in the voice
+    settings.
   - `status`: the visible status line.
 
   For example, `dicta-input::part(status) { display: none; }` leaves only the
@@ -140,14 +142,20 @@ Importing the module defines `<dicta-input>`.
 
 ### Switches
 
-- With both listen modes allowed, a select next to the button lets the user
-  choose `hold` or `toggle`. With both submit modes allowed and text input on, a
-  "Review before sending" checkbox lets the user choose `review` or `auto`.
+- The switches are in a voice settings panel, so the row stays quiet. A small
+  arrow attached to the microphone button, so the two look like one control,
+  opens it; its accessible name is "Voice settings". The panel is a popover:
+  Esc, a click outside or the arrow closes it. A choice does not close it, so
+  the user can change both settings at once.
+- With both listen modes allowed, the panel has a radio group named "Listen
+  mode", with "Hold to talk" and "Hands-free", for `hold` or `toggle`. With both
+  submit modes allowed and text input on, it has a "Review before sending"
+  checkbox for `review` or `auto`. With neither, the arrow is not shown.
 - Each choice is stored in the browser and used on the next visit. Without a
   stored choice, or when the stored mode is no longer allowed, the first allowed
   mode applies.
-- The switches are disabled during an utterance or session, so a mode cannot
-  change while it is in use.
+- The arrow is disabled during an utterance or session, so a mode cannot change
+  while it is in use.
 
 ## Connection
 
