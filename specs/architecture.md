@@ -19,8 +19,10 @@ Message formats are in `contract-protocol.md` in `dicta-server`.
 
 ## Delivery
 
-- One ES module with no runtime dependencies, written in TypeScript and compiled
-  to JavaScript for the browser.
+- ES modules with no runtime dependencies, written in TypeScript and compiled to
+  JavaScript for the browser. The page loads `index.js`, which loads the rest;
+  the AudioWorklet code is a separate file, `audio/worklet.js`, that the browser
+  loads for audio processing.
 - The element is a custom element, `<dicta-input>`, so it works in any page and
   with any UI framework. Its markup and styles live in a shadow root, so the
   page's styles do not break it.
@@ -29,9 +31,10 @@ Message formats are in `contract-protocol.md` in `dicta-server`.
 
 ## Element
 
-Importing the module defines `<dicta-input>`.
+Importing `index.js` defines `<dicta-input>`.
 
-- `server`: the dicta-server URL, for example `wss://example.com`.
+- `server`: the origin of dicta-server, for example `wss://example.com`. A path
+  in it is ignored, since all server paths start with `/dicta/`.
 - `inputs`: `text`, `voice` or `text voice`, by default `text voice`. An input
   left out is not shown.
 - `label`: optional accessible name of the text field. Without it, the
@@ -42,7 +45,8 @@ Importing the module defines `<dicta-input>`.
 - `voice-submit-modes`: how voice finals are submitted, `review` and `auto`, by
   default `review auto`. Without text input it is always `auto`.
 - In both, the first mode is the default and the user may switch to the others,
-  see Voice input (Switches). With one mode, no switch is shown.
+  see Voice input (Switches). With one mode, no switch is shown. Unknown words
+  are ignored; with no known mode left, `hold` or `review` applies.
 - `lang`: optional, passed to the server as the contract's `lang`.
 - `getToken`: an async function the application provides, returning the token as
   a string. How it gets the token is up to the application; usually it calls the
@@ -66,8 +70,8 @@ Importing the module defines `<dicta-input>`.
     settings.
   - `status`: the visible status line.
 
-  For example, `dicta-input::part(status) { display: none; }` leaves only the
-  button and the text field. Pseudo-classes work on parts, for example
+  For example, `dicta-input::part(status) { display: none; }` hides the status
+  line. Pseudo-classes work on parts, for example
   `::part(button):focus-visible`, so no CSS custom properties are needed.
   Attribute selectors do not work on parts, so while the element listens it has
   the custom state `listening`, and `dicta-input:state(listening)::part(button)`

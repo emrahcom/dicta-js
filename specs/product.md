@@ -22,8 +22,9 @@ application the resulting text.
 
 ## First version
 
-- The input element: a text field and a microphone button. The integrator
-  chooses the inputs: text, voice or both. An input left out is not shown.
+- The input element: a text field with a Send button, and a microphone button.
+  The integrator chooses the inputs: text, voice or both. An input left out is
+  not shown.
 - Voice by push-to-talk, holding the microphone button while speaking, or
   hands-free between two presses of the button, with voice activity detection
   finding each utterance.
