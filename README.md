@@ -75,6 +75,23 @@ We advise you to keep text input on. Some users cannot speak, and some voices
 are not recognized well. We also advise you to allow `toggle`. Some users cannot
 hold a button.
 
+## Style
+
+You can style two parts of the element with CSS:
+
+- `caption`: the text the user is saying, shown above the text field.
+- `status`: the line under the element, for example "Listening".
+
+For example, this hides the status line:
+
+```css
+dicta-input::part(status) {
+  display: none;
+}
+```
+
+Screen readers still read the status when the line is hidden.
+
 ## Token
 
 dicta-server needs a token for each connection. Your backend makes the token.

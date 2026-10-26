@@ -53,6 +53,15 @@ const STYLE = `
   [hidden] {
     display: none;
   }
+  /* For screen readers only. */
+  .announcer {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 `;
 
 const MICROPHONE_ICON = `<svg viewBox="0 0 24 24" width="24" height="24"
@@ -72,8 +81,11 @@ export class DictaInput extends HTMLElement {
   getToken: (() => Promise<string>) | undefined;
 
   #caption: HTMLDivElement;
-  // Announced by screen readers: listening, each voice final, failures.
+  // The visible status line: listening, each voice final, failures.
   #status: HTMLDivElement;
+  // The same text for screen readers, so hiding the status line does not
+  // silence it.
+  #announcer: HTMLDivElement;
   #field: HTMLTextAreaElement;
   #button: HTMLButtonElement;
   #listenModeSelect: HTMLSelectElement;
@@ -97,9 +109,14 @@ export class DictaInput extends HTMLElement {
     style.textContent = STYLE;
     this.#caption = document.createElement("div");
     this.#caption.className = "caption";
+    this.#caption.part.add("caption");
     this.#status = document.createElement("div");
     this.#status.className = "status";
-    this.#status.setAttribute("role", "status");
+    this.#status.part.add("status");
+    this.#status.setAttribute("aria-hidden", "true");
+    this.#announcer = document.createElement("div");
+    this.#announcer.className = "announcer";
+    this.#announcer.setAttribute("role", "status");
     this.#field = document.createElement("textarea");
     this.#field.rows = 1;
     this.#field.addEventListener("keydown", (event) => this.#onFieldKey(event));
@@ -148,7 +165,7 @@ export class DictaInput extends HTMLElement {
       }
     });
     row.append(this.#field, this.#button, this.#listenModeSelect);
-    root.append(style, this.#caption, row, this.#status);
+    root.append(style, this.#caption, row, this.#status, this.#announcer);
   }
 
   connectedCallback() {
@@ -273,7 +290,7 @@ export class DictaInput extends HTMLElement {
     this.#heard = undefined;
     this.#button.setAttribute("aria-pressed", "true");
     this.#listenModeSelect.disabled = true;
-    this.#status.textContent = "Listening";
+    this.#setStatus("Listening");
     if (!this.#connection || this.#connection.closed) {
       this.#connection = new Connection(
         {
@@ -342,7 +359,7 @@ export class DictaInput extends HTMLElement {
         connection?.end();
       }
       if (this.#status.textContent?.startsWith("Listening")) {
-        this.#status.textContent = this.#heard ?? "";
+        this.#setStatus(this.#heard ?? "");
       }
     } catch {
       // The microphone failed; #onClose has already cleaned up.
@@ -367,9 +384,7 @@ export class DictaInput extends HTMLElement {
     if (text) {
       // While listening goes on, the status keeps saying so.
       this.#heard = text;
-      this.#status.textContent = this.#listening
-        ? `Listening. Heard: ${text}`
-        : text;
+      this.#setStatus(this.#listening ? `Listening. Heard: ${text}` : text);
       this.#sendText(text, "voice");
     }
   }
@@ -377,7 +392,7 @@ export class DictaInput extends HTMLElement {
   // The connection closed or the microphone failed: listening is over.
   #onClose() {
     if (this.#listening || this.#ending) {
-      this.#status.textContent = "Voice failed";
+      this.#setStatus("Voice failed");
     }
     clearTimeout(this.#idleTimer);
     this.#stopCapture();
@@ -385,6 +400,11 @@ export class DictaInput extends HTMLElement {
     this.#button.setAttribute("aria-pressed", "false");
     this.#listenModeSelect.disabled = false;
     this.#caption.textContent = "";
+  }
+
+  #setStatus(text: string) {
+    this.#status.textContent = text;
+    this.#announcer.textContent = text;
   }
 
   #stopCapture() {

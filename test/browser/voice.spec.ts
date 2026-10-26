@@ -188,18 +188,44 @@ test("shows Listening while speaking and the final after it", async ({
   page,
 }) => {
   const button = await open(page, 'voice-listen-modes="toggle"');
-  const status = page.locator("dicta-input .status");
-  await expect(status).toHaveAttribute("role", "status");
+  const status = page.getByRole("status");
 
   await button.click();
-  await expect(page.getByRole("status")).toHaveText("Listening");
+  await expect(status).toHaveText("Listening");
   await untilFrames(1);
   await button.click();
   await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
   await expect(status).toHaveText("");
   transcript("add a note", true);
 
-  await expect(page.getByRole("status")).toHaveText("add a note");
+  await expect(status).toHaveText("add a note");
+  await expect(page.locator("dicta-input .status")).toHaveText("add a note");
+});
+
+test("lets the page style and hide the caption and the status line", async ({
+  page,
+}) => {
+  await openPage(
+    page,
+    `<style>
+      dicta-input::part(caption) { color: rgb(255, 0, 0); }
+      dicta-input::part(status) { display: none; }
+    </style>
+    <dicta-input server="${server.url}" voice-listen-modes="toggle">
+    </dicta-input>`,
+  );
+  const button = page.getByRole("button", { name: "Speak" });
+  await button.click();
+  await untilFrames(1);
+  transcript("add a", false);
+
+  await expect(page.locator("dicta-input .caption")).toHaveCSS(
+    "color",
+    "rgb(255, 0, 0)",
+  );
+  await expect(page.locator("dicta-input .status")).toBeHidden();
+  // Screen readers still hear the status.
+  await expect(page.getByRole("status")).toHaveText("Listening");
 });
 
 test("shows Voice failed after a close during an utterance", async ({
@@ -313,7 +339,7 @@ test("toggle: the session ends after 5 minutes without speech", async ({
   await page.clock.fastForward("00:02");
 
   await expect(button).toHaveAttribute("aria-pressed", "false");
-  await expect(page.locator("dicta-input .status")).toHaveText("");
+  await expect(page.getByRole("status")).toHaveText("");
 });
 
 test("disables the mode switch while listening", async ({ page }) => {
