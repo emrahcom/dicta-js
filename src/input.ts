@@ -3,22 +3,9 @@
 import { type Capture, startCapture } from "./audio/capture.ts";
 import { VoiceDetector } from "./audio/detector.ts";
 import { Connection, type Transcript } from "./connection.ts";
+import { SETTINGS_STYLE, VoiceSettings } from "./settings.ts";
 
 const DEFAULT_INPUTS = "text voice";
-const LISTEN_MODES = ["hold", "toggle"] as const;
-type ListenMode = (typeof LISTEN_MODES)[number];
-const DEFAULT_LISTEN_MODES = "hold toggle";
-const LISTEN_MODE_NAMES: Record<ListenMode, string> = {
-  hold: "Hold to talk",
-  toggle: "Hands-free",
-};
-// The user's choice of listen mode, kept in the browser.
-const LISTEN_MODE_STORAGE_KEY = "dicta-voice-listen-mode";
-const SUBMIT_MODES = ["review", "auto"] as const;
-type SubmitMode = (typeof SUBMIT_MODES)[number];
-const DEFAULT_SUBMIT_MODES = "review auto";
-// The user's choice of submit mode, kept in the browser.
-const SUBMIT_MODE_STORAGE_KEY = "dicta-voice-submit-mode";
 // Audio captured after the user ends an utterance, so the last word is not cut.
 const POST_ROLL_MS = 300;
 // In the text field, works like the microphone button.
@@ -49,32 +36,6 @@ const STYLE = `
   /* The microphone button and the settings arrow look like one control. */
   .voice {
     display: flex;
-  }
-  /* 24 px wide at least, the WCAG target size. */
-  .settings {
-    padding-inline: 4px;
-    border-left: none;
-  }
-  .settings:disabled {
-    color: #888;
-  }
-  /* Placed under the arrow when it opens. */
-  .panel {
-    position: fixed;
-    inset: auto;
-    margin: 0;
-    padding: 0.5rem;
-    border: 1px solid #888;
-    background: #fff;
-    color: #222;
-  }
-  .panel fieldset {
-    margin: 0 0 0.5rem;
-    padding: 0;
-    border: none;
-  }
-  .panel label {
-    display: block;
   }
   textarea {
     flex: 1;
@@ -123,46 +84,9 @@ const STYLE = `
     clip-path: inset(50%);
     white-space: nowrap;
   }
-`;
+${SETTINGS_STYLE}`;
 
 type Input = "text" | "voice" | "mixed";
-
-// The modes named in an attribute's value, in its order.
-function allowedModes<T extends string>(value: string, modes: readonly T[]) {
-  const words = value.split(/\s+/);
-  return modes
-    .filter((mode) => words.includes(mode))
-    .sort((a, b) => words.indexOf(a) - words.indexOf(b));
-}
-
-// The mode the user chose on this page, else the one stored in the browser,
-// when it is allowed; otherwise the first allowed mode.
-function choose<T extends string>(
-  allowed: T[],
-  chosen: string | undefined,
-  key: string,
-): T {
-  let stored: string | null = null;
-  try {
-    stored = localStorage.getItem(key);
-  } catch {
-    // Storage can fail, as in some private windows.
-  }
-  for (const mode of [chosen, stored]) {
-    if (allowed.includes(mode as T)) {
-      return mode as T;
-    }
-  }
-  return allowed[0]!;
-}
-
-function store(key: string, value: string) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // Without storage, the choice lasts until the page is left.
-  }
-}
 
 const MICROPHONE_ICON = `<svg viewBox="0 0 24 24" width="24" height="24"
   aria-hidden="true" fill="currentColor"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0
@@ -172,9 +96,6 @@ const MICROPHONE_ICON = `<svg viewBox="0 0 24 24" width="24" height="24"
 const SEND_ICON = `<svg viewBox="0 0 24 24" width="24" height="24"
   aria-hidden="true" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15
   2z"/></svg>`;
-
-const ARROW_ICON = `<svg viewBox="0 0 16 24" width="16" height="24"
-  aria-hidden="true" fill="currentColor"><path d="M3 10l5 5 5-5z"/></svg>`;
 
 // A pointer press on a button keeps the focus where it is, so the cursor stays
 // in the text field.
@@ -213,16 +134,7 @@ export class DictaInput extends HTMLElement {
   #pressWhileEnding: boolean | undefined;
   // A pointer press on the button, whose click is then ignored.
   #pointerPressed = false;
-  // Opens the voice settings panel.
-  #settingsButton: HTMLButtonElement;
-  #panel: HTMLDivElement;
-  #listenModeSwitch: HTMLFieldSetElement;
-  #listenModeRadios: HTMLInputElement[];
-  // The mode the user chose here, for when storage fails.
-  #chosenListenMode: string | undefined;
-  #submitModeSwitch: HTMLLabelElement;
-  #reviewBox: HTMLInputElement;
-  #chosenSubmitMode: string | undefined;
+  #settings = new VoiceSettings();
   #connection: Connection | undefined;
   // The capture of the hold utterance or toggle session.
   #capture: Promise<Capture> | undefined;
@@ -329,53 +241,9 @@ export class DictaInput extends HTMLElement {
     this.#sendButton.setAttribute("aria-label", "Send");
     keepFocus(this.#sendButton);
     this.#sendButton.addEventListener("click", () => this.#submit());
-    this.#listenModeSwitch = document.createElement("fieldset");
-    this.#listenModeSwitch.part.add("voice-listen-mode");
-    const legend = document.createElement("legend");
-    legend.textContent = "Listen mode";
-    this.#listenModeSwitch.append(legend);
-    this.#listenModeRadios = LISTEN_MODES.map((mode) => {
-      const radio = document.createElement("input");
-      radio.type = "radio";
-      radio.name = "listen-mode";
-      radio.value = mode;
-      radio.addEventListener("change", () => {
-        this.#chosenListenMode = mode;
-        store(LISTEN_MODE_STORAGE_KEY, mode);
-      });
-      const label = document.createElement("label");
-      label.append(radio, ` ${LISTEN_MODE_NAMES[mode]}`);
-      this.#listenModeSwitch.append(label);
-      return radio;
-    });
-    this.#reviewBox = document.createElement("input");
-    this.#reviewBox.type = "checkbox";
-    this.#reviewBox.addEventListener("change", () => {
-      this.#chosenSubmitMode = this.#reviewBox.checked ? "review" : "auto";
-      store(SUBMIT_MODE_STORAGE_KEY, this.#chosenSubmitMode);
-    });
-    this.#submitModeSwitch = document.createElement("label");
-    this.#submitModeSwitch.part.add("voice-submit-mode");
-    this.#submitModeSwitch.append(this.#reviewBox, " Review before sending");
-    this.#panel = document.createElement("div");
-    this.#panel.className = "panel";
-    this.#panel.popover = "auto";
-    this.#panel.append(this.#listenModeSwitch, this.#submitModeSwitch);
-    this.#panel.addEventListener("beforetoggle", (event) => {
-      if ((event as ToggleEvent).newState === "open") {
-        this.#placePanel();
-      }
-    });
-    this.#settingsButton = document.createElement("button");
-    this.#settingsButton.type = "button";
-    this.#settingsButton.className = "settings";
-    this.#settingsButton.part.add("voice-settings");
-    this.#settingsButton.innerHTML = ARROW_ICON;
-    this.#settingsButton.setAttribute("aria-label", "Voice settings");
-    this.#settingsButton.popoverTargetElement = this.#panel;
     const voice = document.createElement("div");
     voice.className = "voice";
-    voice.append(this.#button, this.#settingsButton);
+    voice.append(this.#button, this.#settings.arrow);
     const row = document.createElement("div");
     row.className = "row";
     row.append(this.#field, this.#sendButton, voice);
@@ -383,7 +251,7 @@ export class DictaInput extends HTMLElement {
       style,
       this.#caption,
       row,
-      this.#panel,
+      this.#settings.panel,
       this.#status,
       this.#announcer,
     );
@@ -415,17 +283,12 @@ export class DictaInput extends HTMLElement {
     } else {
       this.#field.setAttribute("aria-keyshortcuts", SHORTCUT);
     }
-    this.#listenModeSwitch.hidden = this.#allowedListenModes().length < 2;
-    const listenMode = this.#listenMode();
-    for (const radio of this.#listenModeRadios) {
-      radio.checked = radio.value === listenMode;
-    }
-    this.#submitModeSwitch.hidden =
-      this.#field.hidden || this.#allowedSubmitModes().length < 2;
-    this.#reviewBox.checked = this.#submitMode() === "review";
-    this.#settingsButton.hidden =
-      this.#button.hidden ||
-      (this.#listenModeSwitch.hidden && this.#submitModeSwitch.hidden);
+    this.#settings.render({
+      listenModes: this.getAttribute("voice-listen-modes"),
+      submitModes: this.getAttribute("voice-submit-modes"),
+      text: !this.#field.hidden,
+      voice: !this.#button.hidden,
+    });
     const placeholder = this.getAttribute("placeholder");
     if (placeholder) {
       this.#field.placeholder = placeholder;
@@ -501,44 +364,6 @@ export class DictaInput extends HTMLElement {
     );
   }
 
-  // The modes the integrator allows, the first one the default.
-  #allowedListenModes(): ListenMode[] {
-    const allowed = allowedModes(
-      this.getAttribute("voice-listen-modes") ?? DEFAULT_LISTEN_MODES,
-      LISTEN_MODES,
-    );
-    return allowed.length > 0 ? allowed : ["hold"];
-  }
-
-  #allowedSubmitModes(): SubmitMode[] {
-    const allowed = allowedModes(
-      this.getAttribute("voice-submit-modes") ?? DEFAULT_SUBMIT_MODES,
-      SUBMIT_MODES,
-    );
-    return allowed.length > 0 ? allowed : ["review"];
-  }
-
-  #listenMode(): ListenMode {
-    return choose(
-      this.#allowedListenModes(),
-      this.#chosenListenMode,
-      LISTEN_MODE_STORAGE_KEY,
-    );
-  }
-
-  // Without text input there is no field to review in.
-  #submitMode(): SubmitMode {
-    if (this.#field.hidden) {
-      return "auto";
-    }
-    return choose(
-      this.#allowedSubmitModes(),
-      this.#chosenSubmitMode,
-      SUBMIT_MODE_STORAGE_KEY,
-    );
-  }
-
-  // The modes cannot change during an utterance or session.
   #showListening(listening: boolean) {
     this.#button.setAttribute("aria-pressed", String(listening));
     if (listening) {
@@ -546,27 +371,12 @@ export class DictaInput extends HTMLElement {
     } else {
       this.#internals.states.delete("listening");
     }
-    this.#settingsButton.disabled = listening;
-    if (listening && this.#panel.matches(":popover-open")) {
-      this.#panel.hidePopover();
-    }
-  }
-
-  // Puts the panel under the arrow, or over it in the lower half of the
-  // viewport, so it stays on screen; its right edge is on the arrow's.
-  #placePanel() {
-    const arrow = this.#settingsButton.getBoundingClientRect();
-    const { clientWidth, clientHeight } = document.documentElement;
-    const below = arrow.top + arrow.bottom < clientHeight;
-    const style = this.#panel.style;
-    style.top = below ? `${arrow.bottom + 4}px` : "auto";
-    style.bottom = below ? "auto" : `${clientHeight - arrow.top + 4}px`;
-    style.right = `${clientWidth - arrow.right}px`;
+    this.#settings.lock(listening);
   }
 
   // While listening, the mode of the current utterance or session counts: a
   // toggle session has a detector.
-  #press(toggle = this.#listenMode() === "toggle") {
+  #press(toggle = this.#settings.listenMode() === "toggle") {
     if (this.#ending) {
       this.#pressWhileEnding = toggle;
     } else if (!this.#listening) {
@@ -601,7 +411,7 @@ export class DictaInput extends HTMLElement {
     this.#listening = true;
     clearTimeout(this.#closeTimer);
     this.#heard = undefined;
-    this.#review = this.#submitMode() === "review";
+    this.#review = this.#settings.submitMode() === "review";
     this.#showListening(true);
     this.#setStatus("Listening");
     if (!this.#connection || this.#connection.closed) {
