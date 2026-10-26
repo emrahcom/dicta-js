@@ -56,10 +56,18 @@ Importing the module defines `<dicta-input>`.
   Empty finals are not sent. `input` tells where the text came from: `text`
   (typed only), `voice` (spoken only) or `mixed` (both, for example a voice text
   the user edited).
-- Two CSS parts let the integrator style or hide parts of the element:
-  `caption`, the interim text in `auto`, and `status`, the visible status line.
-  For example, `dicta-input::part(status) { display: none; }` leaves only the
-  button and the text field.
+- CSS parts let the integrator style or hide each part of the element:
+  - `caption`: the interim text in `auto`.
+  - `field`: the text field.
+  - `button`: the microphone button.
+  - `voice-listen-mode`: the listen mode switch.
+  - `voice-submit-mode`: the "Review before sending" checkbox.
+  - `status`: the visible status line.
+
+  Pseudo-classes work on parts, for example `::part(button):focus-visible`, so
+  no CSS custom properties are needed. For example,
+  `dicta-input::part(status) { display: none; }` leaves only the button and the
+  text field.
 
 ## Text input
 
