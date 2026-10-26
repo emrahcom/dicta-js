@@ -242,3 +242,76 @@ test("shows a focus outline on the field and the button", async ({ page }) => {
   await page.keyboard.press("Tab");
   expect(await outline()).toBe("solid");
 });
+
+// The fake microphone plays 1 s of tone, then 2 s of silence, in a loop
+// (playwright.config.ts).
+
+test("toggle: ends each utterance on silence and sends no pauses", async ({
+  page,
+}) => {
+  const button = await open(page, 'voice-mode="toggle"');
+
+  await button.click();
+  const started = Date.now();
+  await expect
+    .poll(() => server.connections[0]?.ends.length ?? 0, { timeout: 10_000 })
+    .toBeGreaterThanOrEqual(2);
+  const elapsed = Date.now() - started;
+  const { frames } = server.connections[0]!;
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+  await button.click();
+
+  // Without the pauses, far fewer frames than 50 ms steps went out.
+  expect(frames).toBeGreaterThan(20);
+  expect(frames).toBeLessThan((elapsed / 50) * 0.85);
+  await expect(button).toHaveAttribute("aria-pressed", "false");
+});
+
+test("toggle: a press during speech ends that utterance", async ({ page }) => {
+  const button = await open(page, 'voice-mode="toggle"');
+
+  await button.click();
+  await untilFrames(3);
+  await button.click();
+
+  await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
+  const { frames } = server.connections[0]!;
+  await page.waitForTimeout(1500);
+  expect(server.connections[0]!.ends.length).toBe(1);
+  expect(server.connections[0]!.frames).toBe(frames);
+});
+
+test("toggle: a press during a pause only stops", async ({ page }) => {
+  const button = await open(page, 'voice-mode="toggle"');
+
+  await button.click();
+  await expect.poll(() => server.connections[0]?.ends.length ?? 0).toBe(1);
+  const { frames } = server.connections[0]!;
+  await button.click();
+
+  await expect(button).toHaveAttribute("aria-pressed", "false");
+  await page.waitForTimeout(1500);
+  expect(server.connections[0]!.ends.length).toBe(1);
+  expect(server.connections[0]!.frames).toBe(frames);
+});
+
+test("toggle: the session ends after 5 minutes without speech", async ({
+  page,
+}) => {
+  await page.clock.install();
+  const button = await open(page, 'voice-mode="toggle"');
+  // A silent microphone instead of the fake one, so nothing is speech.
+  await page.evaluate(() => {
+    navigator.mediaDevices.getUserMedia = async () =>
+      new AudioContext().createMediaStreamDestination().stream;
+  });
+  await button.click();
+  await expect(page.getByRole("status")).toHaveText("Listening");
+
+  await page.clock.fastForward("04:59");
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+  await page.clock.fastForward("00:02");
+
+  await expect(button).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator("dicta-input .status")).toHaveText("");
+});

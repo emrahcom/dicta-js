@@ -25,6 +25,11 @@ export class VoiceDetector {
   #speaking = false;
   #silentFrames = 0;
 
+  // True from the start of speech until the end of the utterance.
+  get speaking() {
+    return this.#speaking;
+  }
+
   push(frame: ArrayBuffer): Detection {
     const level = levelDb(frame);
     const speech = this.#isSpeech(level);

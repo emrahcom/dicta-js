@@ -1,11 +1,14 @@
 // The <dicta-input> element: a text field and a push-to-talk microphone button.
 
 import { type Capture, startCapture } from "./audio/capture.ts";
+import { VoiceDetector } from "./audio/detector.ts";
 import { Connection, type Transcript } from "./connection.ts";
 
 const DEFAULT_INPUTS = "text voice";
 // Audio captured after the user ends an utterance, so the last word is not cut.
 const POST_ROLL_MS = 300;
+// A toggle session without speech for this long ends by itself.
+const IDLE_SESSION_MS = 5 * 60 * 1000;
 
 const STYLE = `
   :host {
@@ -60,10 +63,15 @@ export class DictaInput extends HTMLElement {
   #field: HTMLTextAreaElement;
   #button: HTMLButtonElement;
   #connection: Connection | undefined;
-  // The capture of the utterance being spoken or ended.
+  // The capture of the hold utterance or toggle session.
   #capture: Promise<Capture> | undefined;
-  #speaking = false;
+  #detector: VoiceDetector | undefined;
+  #idleTimer: ReturnType<typeof setTimeout> | undefined;
+  // During a hold utterance or a whole toggle session.
+  #listening = false;
   #ending = false;
+  // The last voice final with text since the listening started.
+  #heard: string | undefined;
 
   constructor() {
     super();
@@ -115,6 +123,7 @@ export class DictaInput extends HTMLElement {
   }
 
   disconnectedCallback() {
+    clearTimeout(this.#idleTimer);
     this.#connection?.close();
     this.#connection = undefined;
     this.#stopCapture();
@@ -180,7 +189,7 @@ export class DictaInput extends HTMLElement {
   }
 
   #press() {
-    if (this.#toggleMode() && this.#speaking) {
+    if (this.#toggleMode() && this.#listening) {
       void this.#end();
     } else {
       this.#start();
@@ -193,11 +202,13 @@ export class DictaInput extends HTMLElement {
     }
   }
 
+  // Starts a hold utterance or a toggle session.
   #start() {
-    if (this.#speaking || this.#ending) {
+    if (this.#listening || this.#ending) {
       return;
     }
-    this.#speaking = true;
+    this.#listening = true;
+    this.#heard = undefined;
     this.#button.setAttribute("aria-pressed", "true");
     this.#status.textContent = "Listening";
     if (!this.#connection || this.#connection.closed) {
@@ -214,27 +225,59 @@ export class DictaInput extends HTMLElement {
       );
     }
     const connection = this.#connection;
+    // In toggle, the detector decides what is sent and where utterances end.
+    const detector = this.#toggleMode() ? new VoiceDetector() : undefined;
+    this.#detector = detector;
+    const onFrame = (frame: ArrayBuffer) => {
+      if (!detector) {
+        connection.sendAudio(frame);
+        return;
+      }
+      const { send, end } = detector.push(frame);
+      for (const item of send) {
+        connection.sendAudio(item);
+      }
+      if (send.length > 0) {
+        this.#restartIdleTimer();
+      }
+      if (end) {
+        connection.end();
+      }
+    };
+    if (detector) {
+      this.#restartIdleTimer();
+    }
     // Started in the press handler: Safari starts audio only from a user action.
-    const capture = startCapture((frame) => connection.sendAudio(frame));
+    const capture = startCapture(onFrame);
     capture.catch(() => this.#onClose());
     this.#capture = capture;
   }
 
+  // Ends the hold utterance or the toggle session.
   async #end() {
-    if (!this.#speaking) {
+    if (!this.#listening) {
       return;
     }
-    this.#speaking = false;
+    this.#listening = false;
     this.#ending = true;
     this.#button.setAttribute("aria-pressed", "false");
+    clearTimeout(this.#idleTimer);
     const capture = this.#capture;
     const connection = this.#connection;
-    await new Promise((resolve) => setTimeout(resolve, POST_ROLL_MS));
+    const detector = this.#detector;
+    // Outside speech, a toggle session just stops.
+    const speaking = !detector || detector.speaking;
+    if (speaking) {
+      await new Promise((resolve) => setTimeout(resolve, POST_ROLL_MS));
+    }
     try {
       await (await capture)?.stop();
-      connection?.end();
-      if (this.#status.textContent === "Listening") {
-        this.#status.textContent = "";
+      // The detector may have ended the utterance itself meanwhile.
+      if (!detector || detector.speaking) {
+        connection?.end();
+      }
+      if (this.#status.textContent?.startsWith("Listening")) {
+        this.#status.textContent = this.#heard ?? "";
       }
     } catch {
       // The microphone failed; #onClose has already cleaned up.
@@ -245,6 +288,11 @@ export class DictaInput extends HTMLElement {
     this.#ending = false;
   }
 
+  #restartIdleTimer() {
+    clearTimeout(this.#idleTimer);
+    this.#idleTimer = setTimeout(() => void this.#end(), IDLE_SESSION_MS);
+  }
+
   #onTranscript({ text, final }: Transcript) {
     if (!final) {
       this.#caption.textContent = text;
@@ -252,21 +300,23 @@ export class DictaInput extends HTMLElement {
     }
     this.#caption.textContent = "";
     if (text) {
-      // "Listening" stays while the user already speaks the next utterance.
-      if (!this.#speaking) {
-        this.#status.textContent = text;
-      }
+      // While listening goes on, the status keeps saying so.
+      this.#heard = text;
+      this.#status.textContent = this.#listening
+        ? `Listening. Heard: ${text}`
+        : text;
       this.#sendText(text, "voice");
     }
   }
 
-  // The connection closed or the microphone failed: the utterance is over.
+  // The connection closed or the microphone failed: listening is over.
   #onClose() {
-    if (this.#speaking || this.#ending) {
+    if (this.#listening || this.#ending) {
       this.#status.textContent = "Voice failed";
     }
+    clearTimeout(this.#idleTimer);
     this.#stopCapture();
-    this.#speaking = false;
+    this.#listening = false;
     this.#button.setAttribute("aria-pressed", "false");
     this.#caption.textContent = "";
   }
