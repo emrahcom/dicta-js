@@ -37,13 +37,13 @@ Importing the module defines `<dicta-input>`.
 - `label`: optional accessible name of the text field. Without it, the
   placeholder is used.
 - `placeholder`: optional text shown in the empty text field.
-- `voice-modes`: the voice modes the user may choose, `hold` and `toggle`, see
+- `voice-listen-modes`: how the user may start and stop listening, `hold` and
+  `toggle`, see Voice input. The first one is the default. Without the attribute
+  it is `hold toggle`. With one mode, that mode is used and no switch is shown.
+- `voice-submit-modes`: how voice finals are submitted, `review` and `auto`, see
   Voice input. The first one is the default. Without the attribute it is
-  `hold toggle`. With one mode, that mode is used and no switch is shown.
-- `voice-send`: how voice finals are sent, `review` and `auto`, see Voice input.
-  The first one is the default. Without the attribute it is `review auto`. With
-  one value, that value is used and no switch is shown. Without text input it is
-  always `auto`.
+  `review auto`. With one value, that value is used and no switch is shown.
+  Without text input it is always `auto`.
 - `lang`: optional, passed to the server as the contract's `lang`.
 - `getToken`: an async function the application provides, returning the token as
   a string. How it gets the token is up to the application; usually it calls the
@@ -92,11 +92,11 @@ Two modes: push-to-talk, and hands-free between two presses.
   frames of 50 ms. Converting in the element works the same in every supported
   browser; Firefox cannot open audio processing at a rate other than the
   microphone's.
-- When the integrator allows both modes, a switch next to the button lets the
-  user choose the mode. The choice is stored in the browser and used on the next
-  visit; without a stored choice, or when the stored mode is no longer allowed,
-  the first mode in `voice-modes` applies. The mode cannot change during an
-  utterance or session.
+- When the integrator allows both voice listen modes, a switch next to the
+  button lets the user choose the mode. The choice is stored in the browser and
+  used on the next visit; without a stored choice, or when the stored mode is no
+  longer allowed, the first mode in `voice-listen-modes` applies. The mode
+  cannot change during an utterance or session.
 - When the user ends an utterance with the button, audio is captured for another
   300 ms, so the last word is not cut, and then `end` is sent.
 - `auto`: while the user speaks, the interim text is shown in a caption above
@@ -109,9 +109,10 @@ Two modes: push-to-talk, and hands-free between two presses.
   text. While the interim text is shown, the field is read-only and Enter does
   not submit, so typing cannot mix with it. In a `toggle` session, each final is
   added this way, and a submission does not end the session.
-- When the integrator allows both, a "Review before sending" checkbox lets the
-  user choose between `review` and `auto`. The choice is stored and applied like
-  the voice mode, and it cannot change during an utterance or session.
+- When the integrator allows both voice submit modes, a "Review before sending"
+  checkbox lets the user choose between `review` and `auto`. The choice is
+  stored and applied like the voice listen mode, and it cannot change during an
+  utterance or session.
 
 ## Connection
 
