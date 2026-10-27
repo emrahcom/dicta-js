@@ -44,7 +44,18 @@ breaks the protocol needs a new protocol version, not only a new version number.
    - Notes: a few lines about what changed. Say clearly if pages must change.
    - Leave "Set as the latest release" on.
 
+4. Publish to npm from the release commit, logged in with `npm login`:
+
+   ```sh
+   npm publish
+   ```
+
+   It builds a clean `dist/` first. `npm pack --dry-run` shows what goes into
+   the package without publishing it.
+
 ## Where releases go
+
+Each release is on npm as `dicta-js`, for pages built with a bundler.
 
 The dicta-server image is built only when dicta-server makes a release. It takes
 the latest dicta-js release at that time. So a new dicta-js release reaches

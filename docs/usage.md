@@ -35,6 +35,27 @@ https://github.com/emrahcom/dicta-js/blob/main/docs/tokens.md
 It works in the current and the previous version of Chrome, Edge, Firefox and
 Safari, on desktop and mobile.
 
+## Install from npm
+
+If you build your page with a bundler, for example Vite or webpack, you can
+install dicta-js from npm:
+
+```sh
+npm install dicta-js
+```
+
+Then import it once in your code. This defines `<dicta-input>`:
+
+```js
+import "dicta-js";
+```
+
+It needs no bundler setup. Vite puts the audio code into your bundle as a
+`data:` URL. If your page has a Content Security Policy, allow `data:` in
+`script-src`, or set `build.assetsInlineLimit` to `0` in your Vite config.
+
+When you update dicta-server, update dicta-js too.
+
 ## Host it yourself
 
 You can also build it and put it on your own web server. This needs Node.js 24
