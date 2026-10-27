@@ -5,6 +5,8 @@ import { events, openPage } from "./page.ts";
 
 type ServerConnection = {
   socket: WebSocket;
+  // The request path with its query, for example /dicta/v1/listen?lang=de.
+  url: string | undefined;
   // The Sec-WebSocket-Protocol header: dicta, then the token if there is one.
   protocols: string | undefined;
   frames: number;
@@ -24,6 +26,7 @@ async function fakeServer() {
   server.on("connection", (socket, request) => {
     const connection: ServerConnection = {
       socket,
+      url: request.url,
       protocols: request.headers["sec-websocket-protocol"],
       frames: 0,
       ends: [],
@@ -873,6 +876,29 @@ test("keeps the connection while the user listens again", async ({ page }) => {
 
   expect(server.connections).toHaveLength(1);
   expect(isOpen(0)).toBe(true);
+});
+
+test("opens a new connection with the new lang after lang changes", async ({
+  page,
+}) => {
+  const button = await open(page, 'lang="de"');
+  await holdAndRelease(page, button);
+  await untilEnds(1);
+
+  await page.locator("dicta-input").evaluate((element) => {
+    element.setAttribute("lang", "en");
+  });
+  await button.hover();
+  await page.mouse.down();
+  await expect
+    .poll(() => server.connections[1]?.frames ?? 0)
+    .toBeGreaterThan(5);
+  await page.mouse.up();
+
+  expect(server.connections[0]!.url).toBe("/dicta/v1/listen?lang=de");
+  expect(server.connections[1]!.url).toBe("/dicta/v1/listen?lang=en");
+  await expect.poll(() => isOpen(0)).toBe(false);
+  await expect.poll(() => server.connections[1]!.ends.length).toBe(1);
 });
 
 test("opens a new connection on the press after an idle close", async ({

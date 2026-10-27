@@ -141,6 +141,8 @@ export class DictaInput extends HTMLElement {
   #pointerPressed = false;
   #settings = new VoiceSettings();
   #connection: Connection | undefined;
+  // The server and lang the connection was opened with.
+  #connectedTo: { server: string; lang: string | undefined } | undefined;
   // The capture of the hold utterance or toggle session.
   #capture: Promise<Capture> | undefined;
   #detector: VoiceDetector | undefined;
@@ -414,13 +416,19 @@ export class DictaInput extends HTMLElement {
     this.#review = this.#settings.submitMode() === "review";
     this.#setListening(true);
     this.#setStatus("Listening");
+    const server = this.getAttribute("server") ?? "";
+    const lang = this.getAttribute("lang") ?? undefined;
+    // lang reaches the provider only when the connection opens.
+    if (
+      this.#connectedTo?.server !== server ||
+      this.#connectedTo.lang !== lang
+    ) {
+      this.#connection?.close();
+    }
     if (!this.#connection || this.#connection.closed) {
+      this.#connectedTo = { server, lang };
       this.#connection = new Connection(
-        {
-          server: this.getAttribute("server") ?? "",
-          lang: this.getAttribute("lang") ?? undefined,
-          getToken: this.getToken,
-        },
+        { server, lang, getToken: this.getToken },
         {
           onTranscript: (transcript) => this.#onTranscript(transcript),
           onClose: () => this.#onClose(),
