@@ -184,6 +184,12 @@ Importing `index.js` defines `<dicta-input>`.
 - One minute after listening ends, when the user has not started listening
   again, the element closes the connection, so an idle page does not hold a
   speech-to-text session open on the server. The next press opens a new one.
+- `server` and `lang` are read when the connection opens; `lang` goes to the
+  provider then and cannot change on an open connection. So when listening
+  starts and either differs from what the open connection was opened with, the
+  element closes that connection and opens a new one. A change during listening
+  takes effect at the next start. A new `getToken` does not reopen it, since the
+  token is only checked when a connection opens.
 - Audio captured before `ready` is kept and sent after it, in the same 50 ms
   frames.
 - When the connection closes, the next press opens a new one, with a new token
