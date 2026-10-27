@@ -180,9 +180,8 @@ export class DictaInput extends HTMLElement {
     this.#field.part.add("field");
     this.#field.addEventListener("keydown", (event) => this.#onFieldKey(event));
     this.#field.addEventListener("keyup", (event) => {
-      if (event.code === "Space" && this.#keyDown) {
-        this.#keyDown = false;
-        this.#release();
+      if (event.code === "Space") {
+        this.#releaseKey();
       }
     });
     this.#field.addEventListener("blur", () => this.#releaseKey());
@@ -223,18 +222,13 @@ export class DictaInput extends HTMLElement {
     });
     this.#button.addEventListener("keydown", (event) => {
       if (event.key === " " || event.key === "Enter") {
-        event.preventDefault();
-        if (!event.repeat) {
-          this.#keyDown = true;
-          this.#press();
-        }
+        this.#pressKey(event);
       }
     });
     this.#button.addEventListener("keyup", (event) => {
       if (event.key === " " || event.key === "Enter") {
         event.preventDefault();
-        this.#keyDown = false;
-        this.#release();
+        this.#releaseKey();
       }
     });
     this.#button.addEventListener("blur", () => this.#releaseKey());
@@ -270,7 +264,6 @@ export class DictaInput extends HTMLElement {
     this.#setStatus("");
     clearTimeout(this.#closeTimer);
     this.#connection?.close();
-    this.#connection = undefined;
   }
 
   attributeChangedCallback() {
@@ -315,11 +308,7 @@ export class DictaInput extends HTMLElement {
       event.shiftKey &&
       !this.#button.hidden
     ) {
-      event.preventDefault();
-      if (!event.repeat) {
-        this.#keyDown = true;
-        this.#press();
-      }
+      this.#pressKey(event);
       return;
     }
     // Enter while an input method is composing text belongs to the composition.
@@ -369,7 +358,8 @@ export class DictaInput extends HTMLElement {
     );
   }
 
-  #showListening(listening: boolean) {
+  #setListening(listening: boolean) {
+    this.#listening = listening;
     this.#button.setAttribute("aria-pressed", String(listening));
     if (listening) {
       this.#internals.states.add("listening");
@@ -399,8 +389,17 @@ export class DictaInput extends HTMLElement {
     }
   }
 
-  // The key release may never come once the focus has gone, for example to
-  // another window.
+  // Space or Enter on the button, or Ctrl+Shift+Space in the text field.
+  #pressKey(event: KeyboardEvent) {
+    event.preventDefault();
+    if (!event.repeat) {
+      this.#keyDown = true;
+      this.#press();
+    }
+  }
+
+  // On the key release, or when the focus goes, since the release may never
+  // come then, for example after a switch to another window.
   #releaseKey() {
     if (this.#keyDown) {
       this.#keyDown = false;
@@ -410,14 +409,10 @@ export class DictaInput extends HTMLElement {
 
   // Starts a hold utterance or a toggle session.
   #start(toggle: boolean) {
-    if (this.#listening || this.#ending) {
-      return;
-    }
-    this.#listening = true;
     clearTimeout(this.#closeTimer);
     this.#heard = undefined;
     this.#review = this.#settings.submitMode() === "review";
-    this.#showListening(true);
+    this.#setListening(true);
     this.#setStatus("Listening");
     if (!this.#connection || this.#connection.closed) {
       this.#connection = new Connection(
@@ -466,17 +461,15 @@ export class DictaInput extends HTMLElement {
     if (!this.#listening) {
       return;
     }
-    this.#listening = false;
     this.#ending = true;
-    this.#showListening(false);
+    this.#setListening(false);
     this.#closeLater();
     clearTimeout(this.#idleTimer);
     const capture = this.#capture;
     const connection = this.#connection;
     const detector = this.#detector;
     // Outside speech, a toggle session just stops.
-    const speaking = !detector || detector.speaking;
-    if (speaking) {
+    if (!detector || detector.speaking) {
       await new Promise((resolve) => setTimeout(resolve, POST_ROLL_MS));
     }
     try {
@@ -491,9 +484,8 @@ export class DictaInput extends HTMLElement {
     } catch {
       // The microphone failed; #onClose has already cleaned up.
     }
-    if (this.#capture === capture) {
-      this.#capture = undefined;
-    }
+    // #reset may have cleared it already; nothing starts while ending.
+    this.#capture = undefined;
     this.#ending = false;
     const toggle = this.#pressWhileEnding;
     this.#pressWhileEnding = undefined;
@@ -588,8 +580,7 @@ export class DictaInput extends HTMLElement {
     this.#keyDown = false;
     clearTimeout(this.#idleTimer);
     this.#stopCapture();
-    this.#listening = false;
-    this.#showListening(false);
+    this.#setListening(false);
     this.#closeLater();
     this.#caption.textContent = "";
     this.#removeInterim();
