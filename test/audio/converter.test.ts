@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import {
-  FRAME_SAMPLES,
-  PcmConverter,
-  TARGET_RATE,
-} from "../../src/audio/converter.ts";
+
+// The worklet module registers its processor when it loads, so the AudioWorklet
+// globals it uses are stubbed before the import.
+Object.assign(globalThis, {
+  AudioWorkletProcessor: class {},
+  registerProcessor: () => {},
+});
+const { FRAME_SAMPLES, PcmConverter, TARGET_RATE } =
+  await import("../../src/audio/worklet.ts");
 
 const FRAME_BYTES = FRAME_SAMPLES * 2;
 
