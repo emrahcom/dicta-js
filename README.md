@@ -3,7 +3,8 @@
 Browser side of dicta. Users tell your web application what they want. They can
 type it or say it.
 
-Early development. Not ready for use.
+Version 0.x. Attributes may still change. The release notes tell you when you
+must change your page.
 
 ## How it works
 
@@ -17,13 +18,13 @@ microphone button and a Send button.
 
 ## Quick start
 
-```sh
-npm install
-npm run build
-```
+dicta-server also serves dicta-js. Load it from there:
 
 ```html
-<script type="module" src="/path/to/dist/index.js"></script>
+<script
+  type="module"
+  src="https://dicta.example.com/dicta/js/index.js"
+></script>
 
 <dicta-input server="wss://dicta.example.com"></dicta-input>
 ```
