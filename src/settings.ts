@@ -48,15 +48,17 @@ export const SETTINGS_STYLE = `
 const ARROW_ICON = `<svg viewBox="0 0 16 24" width="16" height="24"
   aria-hidden="true" fill="currentColor"><path d="M3 10l5 5 5-5z"/></svg>`;
 
-// The modes named in an attribute's value, in its order.
+// The modes named in an attribute's value, in its order; the first of all modes
+// when it names none.
 export function allowedModes<T extends string>(
   value: string,
   modes: readonly T[],
-) {
+): T[] {
   const words = value.split(/\s+/);
-  return modes
+  const allowed = modes
     .filter((mode) => words.includes(mode))
     .sort((a, b) => words.indexOf(a) - words.indexOf(b));
+  return allowed.length > 0 ? allowed : [modes[0]!];
 }
 
 // The mode the user chose on this page, else the one stored in the browser,
@@ -207,20 +209,18 @@ export class VoiceSettings {
   }
 
   // The modes the integrator allows, the first one the default.
-  #allowedListenModes(): ListenMode[] {
-    const allowed = allowedModes(
+  #allowedListenModes() {
+    return allowedModes(
       this.#input.listenModes ?? DEFAULT_LISTEN_MODES,
       LISTEN_MODES,
     );
-    return allowed.length > 0 ? allowed : ["hold"];
   }
 
-  #allowedSubmitModes(): SubmitMode[] {
-    const allowed = allowedModes(
+  #allowedSubmitModes() {
+    return allowedModes(
       this.#input.submitModes ?? DEFAULT_SUBMIT_MODES,
       SUBMIT_MODES,
     );
-    return allowed.length > 0 ? allowed : ["review"];
   }
 
   // Puts the panel under the arrow, or over it in the lower half of the

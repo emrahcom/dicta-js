@@ -34,7 +34,8 @@ test("allows the modes named in the value, in its order", () => {
 
 test("ignores unknown words and extra spaces", () => {
   assert.deepEqual(allowedModes("  other  toggle ", LISTEN_MODES), ["toggle"]);
-  assert.deepEqual(allowedModes("other", LISTEN_MODES), []);
+  assert.deepEqual(allowedModes("other", LISTEN_MODES), ["hold"]);
+  assert.deepEqual(allowedModes("other", SUBMIT_MODES), ["review"]);
 });
 
 test("chooses the mode chosen on the page first", () => {
