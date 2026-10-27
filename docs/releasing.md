@@ -46,5 +46,9 @@ breaks the protocol needs a new protocol version, not only a new version number.
 
 ## Where releases go
 
-The dicta-server image takes the latest dicta-js release when it is built. So a
-new dicta-js release reaches users with the next build of the image.
+The dicta-server image is built only when dicta-server makes a release. It takes
+the latest dicta-js release at that time. So a new dicta-js release reaches
+users with the next dicta-server release. If dicta-server has no other change,
+make a patch release of dicta-server for it.
+
+Release dicta-js before dicta-server when both change.
