@@ -483,6 +483,30 @@ test("toggle: the session ends after 5 minutes without speech", async ({
   await expect(page.getByRole("status")).toHaveText("");
 });
 
+test("toggle: a session ended during speech does not end a later utterance", async ({
+  page,
+}) => {
+  await page.clock.install();
+  const button = await open(page);
+  // A click alone is a toggle press; the post-roll then still hears speech.
+  await clickAlone(button);
+  await untilFrames(3);
+  await clickAlone(button);
+  await untilEnds(1);
+
+  await button.hover();
+  await page.mouse.down();
+  const frames = server.connections[0]!.frames;
+  await expect
+    .poll(() => server.connections[0]!.frames)
+    .toBeGreaterThan(frames + 5);
+  await page.clock.fastForward("05:01");
+  await page.waitForTimeout(200);
+
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+  await page.mouse.up();
+});
+
 test("disables the voice settings while listening", async ({ page }) => {
   const button = await open(page);
   const settings = page.getByRole("button", { name: "Voice settings" });

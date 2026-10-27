@@ -448,7 +448,8 @@ export class DictaInput extends HTMLElement {
       for (const item of send) {
         connection.sendAudio(item);
       }
-      if (send.length > 0) {
+      // Not in the post-roll after the session ended: nothing would clear it.
+      if (send.length > 0 && this.#listening && this.#detector === detector) {
         this.#restartIdleTimer();
       }
       if (end) {
