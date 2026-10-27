@@ -22,7 +22,8 @@ Message formats are in `contract-protocol.md` in `dicta-server`.
 - ES modules with no runtime dependencies, written in TypeScript and compiled to
   JavaScript for the browser. The page loads `index.js`, which loads the rest;
   the AudioWorklet code is a separate file, `audio/worklet.js`, that the browser
-  loads for audio processing.
+  loads for audio processing. The worklet imports nothing: bundlers copy it as
+  one file, or inline it as a `data:` URL, so a relative import from it breaks.
 - Two ways to get it. dicta-server serves the build that fits it, and that is
   the main way. Each release is also published to npm as `dicta-js`, holding
   `dist/` with type declarations, for pages built with a bundler. The worklet is
