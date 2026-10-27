@@ -1,5 +1,5 @@
 import type { AddressInfo } from "node:net";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import { type WebSocket, WebSocketServer } from "ws";
 import { events, openPage } from "./page.ts";
 
@@ -107,6 +107,27 @@ async function untilFrames(count: number) {
     .toBeGreaterThan(count);
 }
 
+// Waits until the first connection has received `count` ends.
+async function untilEnds(count: number, timeout?: number) {
+  await expect
+    .poll(() => server.connections[0]?.ends.length ?? 0, { timeout })
+    .toBe(count);
+}
+
+// A click with no pointer press before it, as a screen reader presses a
+// button.
+function clickAlone(button: Locator) {
+  return button.evaluate((element: HTMLElement) => element.click());
+}
+
+// Holds the button with the pointer until audio flows, then releases it.
+async function holdAndRelease(page: Page, button: Locator) {
+  await button.hover();
+  await page.mouse.down();
+  await untilFrames(5);
+  await page.mouse.up();
+}
+
 test("hold: streams while the pointer holds the button, then ends", async ({
   page,
 }) => {
@@ -120,7 +141,7 @@ test("hold: streams while the pointer holds the button, then ends", async ({
   const atRelease = server.connections[0]!.frames;
 
   await expect(button).toHaveAttribute("aria-pressed", "false");
-  await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
+  await untilEnds(1);
   // About 6 frames of post-roll come after the release, and none after end.
   expect(server.connections[0]!.ends[0]! - atRelease).toBeGreaterThan(3);
   expect(server.connections[0]!.ends[0]).toBe(server.connections[0]!.frames);
@@ -136,7 +157,7 @@ test("hold: works with Space held on the focused button", async ({ page }) => {
   await page.keyboard.up(" ");
 
   await expect(button).toHaveAttribute("aria-pressed", "false");
-  await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
+  await untilEnds(1);
 });
 
 test("toggle: a press starts and the next press ends", async ({ page }) => {
@@ -148,7 +169,7 @@ test("toggle: a press starts and the next press ends", async ({ page }) => {
   await button.press("Enter");
 
   await expect(button).toHaveAttribute("aria-pressed", "false");
-  await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
+  await untilEnds(1);
 });
 
 test("auto: shows interim text and sends finals with text as voice events", async ({
@@ -183,7 +204,7 @@ test("opens a new connection on the next press after a close", async ({
   await button.click();
   await untilFrames(1);
   await button.click();
-  await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
+  await untilEnds(1);
 
   server.connections[0]!.socket.close(1011);
   await page.waitForTimeout(100);
@@ -236,7 +257,7 @@ test("shows Listening while speaking and the final after it", async ({
   await expect(status).toHaveText("Listening");
   await untilFrames(1);
   await button.click();
-  await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
+  await untilEnds(1);
   await expect(status).toHaveText("");
   transcript("add a note", true);
 
@@ -420,7 +441,7 @@ test("toggle: a press during speech ends that utterance", async ({ page }) => {
   await untilFrames(3);
   await button.click();
 
-  await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
+  await untilEnds(1);
   const { frames } = server.connections[0]!;
   await page.waitForTimeout(1500);
   expect(server.connections[0]!.ends.length).toBe(1);
@@ -433,9 +454,7 @@ test("toggle: a press during a pause only stops", async ({ page }) => {
   await button.click();
   // Firefox starts audio late, in the first tone, which then counts as
   // background; the second tone is the first utterance.
-  await expect
-    .poll(() => server.connections[0]?.ends.length ?? 0, { timeout: 10_000 })
-    .toBe(1);
+  await untilEnds(1, 10_000);
   const { frames } = server.connections[0]!;
   await button.click();
 
@@ -448,14 +467,7 @@ test("toggle: a press during a pause only stops", async ({ page }) => {
 test("toggle: the session ends after 5 minutes without speech", async ({
   page,
 }) => {
-  await page.clock.install();
-  const button = await open(page, 'voice-listen-modes="toggle"');
-  // A silent microphone instead of the fake one, so nothing is speech.
-  await page.evaluate(() => {
-    MediaDevices.prototype.getUserMedia = async () =>
-      new AudioContext().createMediaStreamDestination().stream;
-  });
-  await countAudioStarts(page);
+  const { button } = await openIdle(page);
   await button.click();
   await expect(page.getByRole("status")).toHaveText("Listening");
   await untilAudioStarts(page, 1);
@@ -711,7 +723,7 @@ test("shortcut: hold Ctrl+Shift+Space in the field to speak", async ({
   await page.keyboard.up("Control");
 
   await expect(button).toHaveAttribute("aria-pressed", "false");
-  await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
+  await untilEnds(1);
   await expect(field).toBeFocused();
   await expect(field).toHaveValue("");
 });
@@ -786,17 +798,13 @@ test("a click alone works as a toggle press, even in hold", async ({
   page,
 }) => {
   const button = await open(page, 'voice-listen-modes="hold"');
-  // As a screen reader presses a button: a click with no pointer press.
-  const clickAlone = () =>
-    button.evaluate((element: HTMLElement) => element.click());
-
-  await clickAlone();
+  await clickAlone(button);
   await expect(button).toHaveAttribute("aria-pressed", "true");
   await untilFrames(5);
   // The fake microphone's silence ends the utterance, as in toggle.
-  await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
+  await untilEnds(1);
   await expect(button).toHaveAttribute("aria-pressed", "true");
-  await clickAlone();
+  await clickAlone(button);
 
   await expect(button).toHaveAttribute("aria-pressed", "false");
 });
@@ -807,7 +815,7 @@ test("a pointer press in hold is not also taken as a click", async ({
   const button = await open(page, 'voice-listen-modes="hold"');
 
   await button.click();
-  await expect.poll(() => server.connections[0]?.ends.length).toBe(1);
+  await untilEnds(1);
   await page.waitForTimeout(200);
 
   await expect(button).toHaveAttribute("aria-pressed", "false");
@@ -909,7 +917,7 @@ test("ignores a right click on the button", async ({ page }) => {
   expect(server.connections).toHaveLength(0);
 
   // A later click alone still works.
-  await button.evaluate((element: HTMLElement) => element.click());
+  await clickAlone(button);
   await expect(button).toHaveAttribute("aria-pressed", "true");
 });
 
@@ -917,14 +925,11 @@ test("hold: keeps a quick second press made while the first ends", async ({
   page,
 }) => {
   const button = await open(page);
-  await button.hover();
-  await page.mouse.down();
-  await untilFrames(5);
-  await page.mouse.up();
+  await holdAndRelease(page, button);
 
   // Pressed again during the 300 ms post-roll of the first utterance.
   await page.mouse.down();
-  await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
+  await untilEnds(1);
   await expect(button).toHaveAttribute("aria-pressed", "true");
   const atStart = server.connections[0]!.frames;
   await expect
@@ -932,19 +937,16 @@ test("hold: keeps a quick second press made while the first ends", async ({
     .toBeGreaterThan(atStart + 3);
   await page.mouse.up();
 
-  await expect.poll(() => server.connections[0]!.ends.length).toBe(2);
+  await untilEnds(2);
 });
 
 test("hold: drops a quick tap made while the first ends", async ({ page }) => {
   const button = await open(page);
-  await button.hover();
-  await page.mouse.down();
-  await untilFrames(5);
-  await page.mouse.up();
+  await holdAndRelease(page, button);
 
   await page.mouse.down();
   await page.mouse.up();
-  await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
+  await untilEnds(1);
   await page.waitForTimeout(300);
 
   await expect(button).toHaveAttribute("aria-pressed", "false");
@@ -963,7 +965,7 @@ test("hold: ends when the button loses the focus while Space holds it", async ({
   await page.getByRole("textbox").evaluate((field) => field.focus());
 
   await expect(button).toHaveAttribute("aria-pressed", "false");
-  await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
+  await untilEnds(1);
   await page.keyboard.up(" ");
 });
 
@@ -981,7 +983,7 @@ test("hold: ends when the field loses the focus during the shortcut", async ({
   await button.evaluate((element: HTMLElement) => element.focus());
 
   await expect(button).toHaveAttribute("aria-pressed", "false");
-  await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
+  await untilEnds(1);
   await page.keyboard.up("Space");
   await page.keyboard.up("Shift");
   await page.keyboard.up("Control");
@@ -1138,21 +1140,16 @@ test("keeps a toggle press made while a hold utterance ends", async ({
   page,
 }) => {
   const button = await open(page);
-  await button.hover();
-  await page.mouse.down();
-  await untilFrames(5);
-  await page.mouse.up();
+  await holdAndRelease(page, button);
 
   // A click alone, as from a screen reader, during the 300 ms post-roll.
-  await button.evaluate((element: HTMLElement) => element.click());
+  await clickAlone(button);
 
-  await expect.poll(() => server.connections[0]!.ends.length).toBe(1);
+  await untilEnds(1);
   await expect(button).toHaveAttribute("aria-pressed", "true");
   // A toggle session: the fake microphone's silence ends the next utterance,
   // and the session goes on.
-  await expect
-    .poll(() => server.connections[0]!.ends.length, { timeout: 10_000 })
-    .toBe(2);
+  await untilEnds(2, 10_000);
   await expect(button).toHaveAttribute("aria-pressed", "true");
 });
 
@@ -1160,15 +1157,12 @@ test("starts again after a close during the end of a hold utterance", async ({
   page,
 }) => {
   const button = await open(page);
-  await button.hover();
-  await page.mouse.down();
-  await untilFrames(5);
-  await page.mouse.up();
+  await holdAndRelease(page, button);
 
   // Within the 300 ms post-roll: the server closes, then the user presses.
   server.connections[0]!.socket.close(1011);
   await expect(page.getByRole("status")).toHaveText("Voice failed");
-  await button.evaluate((element: HTMLElement) => element.click());
+  await clickAlone(button);
 
   await expect(page.getByRole("status")).toHaveText("Listening");
   await expect.poll(() => server.connections.length).toBe(2);
