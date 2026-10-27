@@ -3,6 +3,8 @@
 Browser side of dicta. Users tell your web application what they want. They can
 type it or say it.
 
+https://github.com/user-attachments/assets/b3faf3e0-a4c7-4ada-be74-889c05b9ab01
+
 Version 0.x. Attributes may still change. The release notes tell you when you
 must change your page.
 
