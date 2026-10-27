@@ -37,6 +37,11 @@ Run them after every change.
 
 `npm run format` fixes formatting.
 
+## Releases
+
+Version rules and release steps are in `docs/releasing.md`. Releases are done by
+the user.
+
 ## Commits
 
 Type prefix (`feat`, `fix`, `refactor`, `test`, `docs`, `chore`), subject only,
