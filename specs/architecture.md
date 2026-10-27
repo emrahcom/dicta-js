@@ -23,6 +23,11 @@ Message formats are in `contract-protocol.md` in `dicta-server`.
   JavaScript for the browser. The page loads `index.js`, which loads the rest;
   the AudioWorklet code is a separate file, `audio/worklet.js`, that the browser
   loads for audio processing.
+- Two ways to get it. dicta-server serves the build that fits it, and that is
+  the main way. Each release is also published to npm as `dicta-js`, holding
+  `dist/` with type declarations, for pages built with a bundler. The worklet is
+  found with `new URL("./worklet.js", import.meta.url)`, so the package must
+  work with Vite and webpack; any setup they need is in the user documents.
 - The element is a custom element, `<dicta-input>`, so it works in any page and
   with any UI framework. Its markup and styles live in a shadow root, so the
   page's styles do not break it.
