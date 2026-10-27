@@ -23,4 +23,12 @@ async function dictaToken(userId) {
 
 Only give tokens to users who may use voice input.
 
+The speech-to-text service costs money for each minute of audio. dicta-server
+limits each connection, but it cannot limit a user: a user can always get a new
+token and connect again. So limit users in your backend, before it makes a
+token. For example, limit how many tokens one user gets per hour, and stop
+giving tokens to a user who uses too much. With a short `exp`, such a user loses
+access soon. They cannot connect again after the token expires, and an open
+connection ends after at most 30 minutes by default.
+
 If dicta-server runs without authentication, do not set `getToken`.
