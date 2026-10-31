@@ -12,6 +12,9 @@ application the resulting text.
 - A browser library with one input element, for typed and spoken input. The
   application gets the user's text the same way for both.
 - Independent of UI frameworks: it works in any web page.
+- Accessible as a first-class feature: everything a sighted user sees or does is
+  available to keyboard and screen reader users (`architecture.md`,
+  Accessibility).
 
 ## What it is not
 
