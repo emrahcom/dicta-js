@@ -7,6 +7,8 @@ integrator.
 
 TypeScript, running in the browser.
 
+Accessibility, high test coverage, security and stability are first-class goals.
+
 ## Specs and tasks
 
 - `specs/` is authoritative; code follows it. Specs are living documents: write
