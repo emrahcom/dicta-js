@@ -37,7 +37,8 @@ Message formats are in `contract-protocol.md` in `dicta-server`.
 
 ## Element
 
-Importing `index.js` defines `<dicta-input>`.
+Importing `index.js` defines `<dicta-input>` and exports its class,
+`DictaInput`.
 
 - `server`: the origin of dicta-server, for example `wss://example.com`. A path
   in it is ignored, since all server paths start with `/dicta/`.
@@ -61,11 +62,11 @@ Importing `index.js` defines `<dicta-input>`.
   Connection). It is called for each new connection, because tokens expire.
   Without `getToken`, the element connects without a token, for a server with
   authentication turned off.
-- The element sends a `dicta-text` event with `{ text, input }` for each
-  submission of the text field and, in `auto`, for each voice final with text.
-  Empty finals are not sent. `input` tells where the text came from: `text`
-  (typed only), `voice` (spoken only) or `mixed` (both, for example a voice text
-  the user edited).
+- The element sends a `dicta-text` event, which bubbles and crosses shadow
+  roots, with `{ text, input }` for each submission of the text field and, in
+  `auto`, for each voice final with text. Empty finals are not sent. `input`
+  tells where the text came from: `text` (typed only), `voice` (spoken only) or
+  `mixed` (both, for example a voice text the user edited).
 - CSS parts let the integrator style or hide each part of the element:
   - `caption`: the interim text in `auto`.
   - `field`: the text field.
@@ -199,8 +200,9 @@ Importing `index.js` defines `<dicta-input>`.
 - When the connection closes, the next press opens a new one, with a new token
   when `getToken` is set. There is no automatic reconnect while the user is not
   speaking, so no backoff is needed.
-- A close or an error during an utterance ends it: the interim text is removed
-  and the element shows that voice failed, until the next press.
+- A close or an error during an utterance, also while its final is still
+  awaited, ends it: the interim text is removed and the element shows that voice
+  failed, until the next press.
 
 ## Accessibility
 
