@@ -309,6 +309,35 @@ test("shows Voice failed after a close during an utterance", async ({
   await expect(page.getByRole("status")).toHaveText("Listening");
 });
 
+for (const finalFirst of [false, true]) {
+  test(`${finalFirst ? "shows nothing for a close after the final" : "shows Voice failed for a close while the final is awaited"}`, async ({
+    page,
+  }) => {
+    const button = await open(page);
+    await button.hover();
+    await page.mouse.down();
+    await untilFrames(5);
+    transcript("add a", false);
+    await page.mouse.up();
+    await untilEnds(1);
+    if (finalFirst) {
+      transcript("add a note", true);
+      await expect(page.getByRole("status")).toHaveText("add a note");
+    }
+
+    server.connections[0]!.socket.close(1011);
+
+    if (finalFirst) {
+      await expect.poll(() => isOpen(0)).toBe(false);
+      await expect(page.getByRole("status")).toHaveText("add a note");
+    } else {
+      await expect(page.getByRole("status")).toHaveText("Voice failed");
+      // The interim text is removed from the field.
+      await expect(page.getByRole("textbox")).toHaveValue("");
+    }
+  });
+}
+
 test("shows Voice failed when the microphone is denied", async ({ page }) => {
   const button = await open(page, 'voice-listen-modes="toggle"');
   await page.evaluate(() => {

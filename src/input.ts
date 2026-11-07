@@ -157,6 +157,8 @@ export class DictaInput extends HTMLElement {
   #review = false;
   // In review, the field's text around the interim text while it is shown.
   #interim: { before: string; after: string } | undefined;
+  // Utterances ended with `end` whose final has not come yet.
+  #awaiting = 0;
   // What went into the field since it was last submitted or empty.
   #typed = false;
   #spoken = false;
@@ -454,6 +456,7 @@ export class DictaInput extends HTMLElement {
       }
       if (end) {
         connection.end();
+        this.#awaiting++;
       }
     };
     if (detector) {
@@ -484,8 +487,9 @@ export class DictaInput extends HTMLElement {
     try {
       await (await capture)?.stop();
       // The detector may have ended the utterance itself meanwhile.
-      if (!detector || detector.speaking) {
-        connection?.end();
+      if (connection && (!detector || detector.speaking)) {
+        connection.end();
+        this.#awaiting++;
       }
       if (this.#status.textContent?.startsWith("Listening")) {
         this.#setStatus(this.#heard ?? "");
@@ -518,6 +522,9 @@ export class DictaInput extends HTMLElement {
   }
 
   #onTranscript({ text, final }: Transcript) {
+    if (final) {
+      this.#awaiting = Math.max(0, this.#awaiting - 1);
+    }
     if (this.#review) {
       this.#showInField(text, final);
     } else {
@@ -577,9 +584,10 @@ export class DictaInput extends HTMLElement {
 
   // The connection closed or the microphone failed: listening is over.
   #onClose() {
-    if (this.#listening || this.#ending) {
+    if (this.#listening || this.#ending || this.#awaiting > 0) {
       this.#setStatus("Voice failed");
     }
+    this.#awaiting = 0;
     this.#reset();
   }
 
