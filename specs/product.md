@@ -34,7 +34,6 @@ application the resulting text.
 - Voice input streams the microphone audio to `dicta-server` and shows the
   interim text while the user speaks. The final text goes to the application, or
   into the text field for the user to review and submit first.
-- After a connection failure, the next press opens a new connection.
 
 Turning the text into the application's actions (tool calls) is not part of
 dicta-js. `dicta-js` and `dicta-server` are complete without it: the application
