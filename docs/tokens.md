@@ -21,6 +21,21 @@ async function dictaToken(userId) {
 }
 ```
 
+dicta-server can also check the `aud` claim of the token. This happens only when
+`JWT_AUDIENCE` is set on dicta-server. Then the token must have that value in
+`aud`:
+
+```js
+new SignJWT({ sub: userId })
+  .setProtectedHeader({ alg: "HS256" })
+  .setAudience("dicta")
+  .setExpirationTime("5m")
+  .sign(secret);
+```
+
+Use it when dicta-action-server shares `JWT_SECRET` with dicta-server. Give each
+server its own `JWT_AUDIENCE`, so a token for one does not work on the other.
+
 Only give tokens to users who may use voice input.
 
 The speech-to-text service costs money for each minute of audio. dicta-server
