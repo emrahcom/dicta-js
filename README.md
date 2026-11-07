@@ -36,11 +36,14 @@ run `npm run demo`.
 
 ## Documents
 
-- Usage, the event and the demo:
+- Usage, the event and the demo:\
   https://github.com/emrahcom/dicta-js/blob/main/docs/usage.md
-- Attributes: https://github.com/emrahcom/dicta-js/blob/main/docs/attributes.md
-- Styling: https://github.com/emrahcom/dicta-js/blob/main/docs/styling.md
-- Tokens: https://github.com/emrahcom/dicta-js/blob/main/docs/tokens.md
+- Attributes:\
+  https://github.com/emrahcom/dicta-js/blob/main/docs/attributes.md
+- Styling:\
+  https://github.com/emrahcom/dicta-js/blob/main/docs/styling.md
+- Tokens:\
+  https://github.com/emrahcom/dicta-js/blob/main/docs/tokens.md
 
 ## License
 
