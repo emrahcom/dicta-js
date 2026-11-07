@@ -94,6 +94,6 @@ Start dicta-server without authentication. Then run:
 npm run demo
 ```
 
-Open `http://localhost:4174/?server=ws://localhost:8080`. You can add more
+Open `http://localhost:4174/?server=ws://localhost:8740`. You can add more
 attributes to the address, for example `&voice-listen-modes=toggle`,
 `&voice-submit-modes=auto`, `&inputs=voice` or `&lang=de`.
