@@ -4,8 +4,8 @@ How to put dicta-js on your page and get the user's text.
 
 ## Load it
 
-dicta-server also serves dicta-js, the version that fits it. Load it from your
-dicta-server:
+[dicta-server](https://github.com/emrahcom/dicta-server) also serves dicta-js,
+the version that fits it. Load it from your dicta-server:
 
 ```html
 <script

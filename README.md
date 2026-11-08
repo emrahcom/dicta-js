@@ -14,9 +14,10 @@ You put one element on your page: `<dicta-input>`. It has a text field, a
 microphone button and a Send button.
 
 - When the user types and presses Enter or Send, you get the text.
-- When the user speaks, the element sends the audio to dicta-server. The text
-  goes into the text field, and the user presses Enter or Send to send it. Or
-  you get it at once when the user stops.
+- When the user speaks, the element sends the audio to
+  [dicta-server](https://github.com/emrahcom/dicta-server). The text goes into
+  the text field, and the user presses Enter or Send to send it. Or you get it
+  at once when the user stops.
 
 ## Quick start
 

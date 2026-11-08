@@ -1,8 +1,8 @@
 # Tokens
 
-dicta-server needs a token for each connection. Your backend makes the token.
-The element asks for it with `getToken`, so write `getToken` to call your
-backend.
+[dicta-server](https://github.com/emrahcom/dicta-server) needs a token for each
+connection. Your backend makes the token. The element asks for it with
+`getToken`, so write `getToken` to call your backend.
 
 The token is a JWT signed with HS256. It uses the same secret as dicta-server
 (`JWT_SECRET`) and must have an expiry time (`exp`). Keep it short, for example
@@ -33,8 +33,10 @@ new SignJWT({ sub: userId })
   .sign(secret);
 ```
 
-Use it when dicta-action-server shares `JWT_SECRET` with dicta-server. Give each
-server its own `JWT_AUDIENCE`, so a token for one does not work on the other.
+Use it when
+[dicta-action-server](https://github.com/emrahcom/dicta-action-server) shares
+`JWT_SECRET` with dicta-server. Give each server its own `JWT_AUDIENCE`, so a
+token for one does not work on the other.
 
 Only give tokens to users who may use voice input.
 

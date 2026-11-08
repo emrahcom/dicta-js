@@ -2,7 +2,8 @@
 
 The attributes of `<dicta-input>`.
 
-- `server`: the address of your dicta-server, for example
+- `server`: the address of your
+  [dicta-server](https://github.com/emrahcom/dicta-server), for example
   `wss://dicta.example.com`.
 - `inputs`: `text`, `voice` or `text voice`. The default is `text voice`.
 - `voice-listen-modes`: how the user may start and stop listening. The first one

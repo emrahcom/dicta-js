@@ -14,9 +14,10 @@ While the major number is 0:
 - Raise the patch number for everything else: fixes and new features that do not
   break pages. `0.1.3` becomes `0.1.4`.
 
-dicta-js and dicta-server have their own version numbers. They work together
-through the protocol version, the `v1` in `/dicta/v1/listen`. A change that
-breaks the protocol needs a new protocol version, not only a new version number.
+dicta-js and [dicta-server](https://github.com/emrahcom/dicta-server) have their
+own version numbers. They work together through the protocol version, the `v1`
+in `/dicta/v1/listen`. A change that breaks the protocol needs a new protocol
+version, not only a new version number.
 
 ## Steps
 
