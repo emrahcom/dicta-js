@@ -23,7 +23,7 @@ application the resulting text.
 - Not a chat UI or assistant. It does not keep a conversation or talk back.
 - Not the place for authentication. The application's backend issues the token.
 
-## First version
+## Features
 
 - The input element: a text field with a Send button, and a microphone button.
   The integrator chooses the inputs: text, voice or both. An input left out is
