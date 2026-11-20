@@ -194,7 +194,10 @@ Importing `index.js` defines `<dicta-input>` and exports its class,
 - `server` and `lang` are read when a connection opens. When listening starts
   and either differs from the open connection's values, the element closes it
   and opens a new one; a change during listening takes effect at the next start.
-  A new `getToken` does not reopen it.
+  A new `getToken` does not reopen it. A final still awaited on a connection the
+  element closes itself, here or when it is removed from the page, is dropped
+  without a failure shown, so a later close of the new connection is not taken
+  for one.
 - Audio captured before `ready` is kept and sent after it, in the same 50 ms
   frames.
 - When the connection closes, the next press opens a new one, with a new token
