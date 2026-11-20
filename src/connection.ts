@@ -9,7 +9,7 @@ export type ConnectionOptions = {
   getToken?: () => Promise<string>;
 };
 
-export type ConnectionEvents = {
+type ConnectionEvents = {
   onTranscript: (transcript: Transcript) => void;
   // Called once when the connection ends without close() being called,
   // including when it cannot be set up.

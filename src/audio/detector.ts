@@ -11,7 +11,7 @@ const MIN_SPEECH_DB = -55;
 // followed at once.
 const BACKGROUND_RISE = 0.02;
 
-export type Detection = {
+type Detection = {
   // The frames to send: the 300 ms before speech at its start, then every frame
   // of the utterance.
   send: ArrayBuffer[];

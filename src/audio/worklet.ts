@@ -3,12 +3,11 @@
 // the rest of the last frame and then `{ done: true }`.
 // It imports nothing, so that bundlers can copy it as one file.
 
-// Converts microphone audio to the contract's format: 16 kHz, mono, signed
-// 16-bit little-endian PCM, in frames of 50 ms.
-
 export const TARGET_RATE = 16_000;
 export const FRAME_SAMPLES = 800; // 50 ms at 16 kHz
 
+// Converts microphone audio to the contract's format: 16 kHz, mono, signed
+// 16-bit little-endian PCM, in frames of 50 ms.
 export class PcmConverter {
   // Input samples per output sample.
   readonly #ratio: number;

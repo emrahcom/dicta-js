@@ -17,6 +17,8 @@ const SHORTCUT = "Control+Shift+Space";
 const IDLE_SESSION_MS = 5 * 60 * 1000;
 // A connection not used for this long after listening is closed.
 const IDLE_CONNECTION_MS = 60 * 1000;
+// The status while listening, also read to tell whether a failure was shown.
+const LISTENING = "Listening";
 
 const STYLE = `
   :host {
@@ -104,6 +106,11 @@ const SEND_ICON = `<svg viewBox="0 0 24 24" width="24" height="24"
 // in the text field.
 function keepFocus(button: HTMLButtonElement) {
   button.addEventListener("mousedown", (event) => event.preventDefault());
+}
+
+// Space and Enter press a button.
+function isPressKey(event: KeyboardEvent) {
+  return event.key === " " || event.key === "Enter";
 }
 
 export class DictaInput extends HTMLElement {
@@ -194,48 +201,7 @@ export class DictaInput extends HTMLElement {
       this.#spoken &&= this.#typed;
       this.#fit();
     });
-    this.#button = document.createElement("button");
-    this.#button.type = "button";
-    this.#button.part.add("button");
-    this.#button.className = "microphone";
-    this.#button.innerHTML = MICROPHONE_ICON;
-    this.#button.setAttribute("aria-label", "Speak");
-    this.#button.setAttribute("aria-pressed", "false");
-    keepFocus(this.#button);
-    this.#button.addEventListener("pointerdown", (event) => {
-      if (event.button !== 0) {
-        return;
-      }
-      this.#button.setPointerCapture(event.pointerId);
-      this.#pointerPressed = true;
-      this.#press();
-    });
-    this.#button.addEventListener("pointerup", () => this.#release());
-    this.#button.addEventListener("pointercancel", () => {
-      this.#pointerPressed = false;
-      this.#release();
-    });
-    // A click alone comes from a screen reader, or from the page's code; it
-    // cannot be held, so it works as a toggle press.
-    this.#button.addEventListener("click", () => {
-      if (this.#pointerPressed) {
-        this.#pointerPressed = false;
-      } else {
-        this.#press(true);
-      }
-    });
-    this.#button.addEventListener("keydown", (event) => {
-      if (event.key === " " || event.key === "Enter") {
-        this.#pressKey(event);
-      }
-    });
-    this.#button.addEventListener("keyup", (event) => {
-      if (event.key === " " || event.key === "Enter") {
-        event.preventDefault();
-        this.#releaseKey();
-      }
-    });
-    this.#button.addEventListener("blur", () => this.#releaseKey());
+    this.#button = this.#createMicrophoneButton();
     this.#sendButton = document.createElement("button");
     this.#sendButton.type = "button";
     this.#sendButton.part.add("send");
@@ -257,6 +223,53 @@ export class DictaInput extends HTMLElement {
       this.#status,
       this.#announcer,
     );
+  }
+
+  // The microphone button, with its pointer and key handlers.
+  #createMicrophoneButton() {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.part.add("button");
+    button.className = "microphone";
+    button.innerHTML = MICROPHONE_ICON;
+    button.setAttribute("aria-label", "Speak");
+    button.setAttribute("aria-pressed", "false");
+    keepFocus(button);
+    button.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) {
+        return;
+      }
+      button.setPointerCapture(event.pointerId);
+      this.#pointerPressed = true;
+      this.#press();
+    });
+    button.addEventListener("pointerup", () => this.#release());
+    button.addEventListener("pointercancel", () => {
+      this.#pointerPressed = false;
+      this.#release();
+    });
+    // A click alone comes from a screen reader, or from the page's code; it
+    // cannot be held, so it works as a toggle press.
+    button.addEventListener("click", () => {
+      if (this.#pointerPressed) {
+        this.#pointerPressed = false;
+      } else {
+        this.#press(true);
+      }
+    });
+    button.addEventListener("keydown", (event) => {
+      if (isPressKey(event)) {
+        this.#pressKey(event);
+      }
+    });
+    button.addEventListener("keyup", (event) => {
+      if (isPressKey(event)) {
+        event.preventDefault();
+        this.#releaseKey();
+      }
+    });
+    button.addEventListener("blur", () => this.#releaseKey());
+    return button;
   }
 
   connectedCallback() {
@@ -425,27 +438,8 @@ export class DictaInput extends HTMLElement {
     this.#heard = undefined;
     this.#review = this.#settings.submitMode() === "review";
     this.#setListening(true);
-    this.#setStatus("Listening");
-    const server = this.getAttribute("server") ?? "";
-    const lang = this.getAttribute("lang") ?? undefined;
-    // lang reaches the provider only when the connection opens.
-    if (
-      this.#connectedTo?.server !== server ||
-      this.#connectedTo.lang !== lang
-    ) {
-      this.#closeConnection();
-    }
-    if (!this.#connection || this.#connection.closed) {
-      this.#connectedTo = { server, lang };
-      this.#connection = new Connection(
-        { server, lang, getToken: this.getToken },
-        {
-          onTranscript: (transcript) => this.#onTranscript(transcript),
-          onClose: () => this.#onClose(),
-        },
-      );
-    }
-    const connection = this.#connection;
+    this.#setStatus(LISTENING);
+    const connection = this.#connect();
     // In toggle, the detector decides what is sent and where utterances end.
     const detector = toggle ? new VoiceDetector() : undefined;
     this.#detector = detector;
@@ -470,10 +464,36 @@ export class DictaInput extends HTMLElement {
     if (detector) {
       this.#restartIdleTimer();
     }
-    // Started in the press handler: Safari starts audio only from a user action.
+    // Started in the press handler: Safari starts audio only from a user
+    // action.
     const capture = startCapture(onFrame);
     capture.catch(() => this.#onClose());
     this.#capture = capture;
+  }
+
+  // Keeps the open connection, or opens a new one when there is none or the
+  // server or lang changed.
+  #connect(): Connection {
+    const server = this.getAttribute("server") ?? "";
+    const lang = this.getAttribute("lang") ?? undefined;
+    // lang reaches the provider only when the connection opens.
+    if (
+      this.#connectedTo?.server !== server ||
+      this.#connectedTo.lang !== lang
+    ) {
+      this.#closeConnection();
+    }
+    if (!this.#connection || this.#connection.closed) {
+      this.#connectedTo = { server, lang };
+      this.#connection = new Connection(
+        { server, lang, getToken: this.getToken },
+        {
+          onTranscript: (transcript) => this.#onTranscript(transcript),
+          onClose: () => this.#onClose(),
+        },
+      );
+    }
+    return this.#connection;
   }
 
   // Ends the hold utterance or the toggle session.
@@ -499,7 +519,7 @@ export class DictaInput extends HTMLElement {
         connection.end();
         this.#awaiting++;
       }
-      if (this.#status.textContent?.startsWith("Listening")) {
+      if (this.#status.textContent?.startsWith(LISTENING)) {
         this.#setStatus(this.#heard ?? "");
       }
     } catch {
@@ -543,7 +563,7 @@ export class DictaInput extends HTMLElement {
     }
     // While listening goes on, the status keeps saying so.
     this.#heard = text;
-    this.#setStatus(this.#listening ? `Listening. Heard: ${text}` : text);
+    this.#setStatus(this.#listening ? `${LISTENING}. Heard: ${text}` : text);
     if (!this.#review) {
       this.#sendText(text, "voice");
     }

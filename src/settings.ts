@@ -2,7 +2,7 @@
 // user's choice among them, and the panel where the user makes it.
 
 export const LISTEN_MODES = ["hold", "toggle"] as const;
-export type ListenMode = (typeof LISTEN_MODES)[number];
+type ListenMode = (typeof LISTEN_MODES)[number];
 const DEFAULT_LISTEN_MODES = "hold toggle";
 const LISTEN_MODE_NAMES: Record<ListenMode, string> = {
   hold: "Hold to talk",
@@ -11,7 +11,7 @@ const LISTEN_MODE_NAMES: Record<ListenMode, string> = {
 // The user's choice of listen mode, kept in the browser.
 const LISTEN_MODE_STORAGE_KEY = "dicta-voice-listen-mode";
 export const SUBMIT_MODES = ["review", "auto"] as const;
-export type SubmitMode = (typeof SUBMIT_MODES)[number];
+type SubmitMode = (typeof SUBMIT_MODES)[number];
 const DEFAULT_SUBMIT_MODES = "review auto";
 // The user's choice of submit mode, kept in the browser.
 const SUBMIT_MODE_STORAGE_KEY = "dicta-voice-submit-mode";
@@ -91,7 +91,7 @@ function store(key: string, value: string) {
 }
 
 // What the settings depend on in the element.
-export type SettingsInput = {
+type SettingsInput = {
   // The values of voice-listen-modes and voice-submit-modes.
   listenModes: string | null;
   submitModes: string | null;
