@@ -1,6 +1,6 @@
 {
   "name": "dicta-js",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Browser element for text and voice input. Streams speech to dicta-server and types the words into your app.",
   "keywords": [
     "speech-to-text",
