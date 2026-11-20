@@ -18,6 +18,21 @@ test("lets the page style the field and the button", async ({ page }) => {
   );
 });
 
+test("lets the page style the Send button", async ({ page }) => {
+  await openPage(
+    page,
+    `<style>
+      dicta-input::part(send) { color: rgb(255, 0, 0); }
+    </style>
+    <dicta-input></dicta-input>`,
+  );
+
+  await expect(page.getByRole("button", { name: "Send" })).toHaveCSS(
+    "color",
+    "rgb(255, 0, 0)",
+  );
+});
+
 test("lets the page style a part's pseudo-class", async ({ page }) => {
   await openPage(
     page,

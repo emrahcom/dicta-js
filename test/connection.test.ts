@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import type { IncomingMessage } from "node:http";
 import type { AddressInfo } from "node:net";
 import { type TestContext, test } from "node:test";
+import { setTimeout as sleep } from "node:timers/promises";
 import { type WebSocket as ServerSocket, WebSocketServer } from "ws";
 import {
   Connection,
@@ -62,7 +63,7 @@ function connect(options: ConnectionOptions) {
 
 async function until(check: () => boolean) {
   while (!check()) {
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await sleep(5);
   }
 }
 
@@ -100,7 +101,7 @@ test("keeps audio and end until ready, then sends them in order", async (t) => {
   connection.sendAudio(new Uint8Array([3]).buffer);
   connection.end();
   const { socket, received } = await server.connection;
-  await new Promise((resolve) => setTimeout(resolve, 20));
+  await sleep(20);
   assert.deepEqual(received, []);
 
   socket.send(JSON.stringify({ type: "ready", sessionId: "s" }));
@@ -147,46 +148,38 @@ test("reports a close by the server once", async (t) => {
   await closed;
   connection.sendAudio(new Uint8Array([1]).buffer);
   connection.close();
-  await new Promise((resolve) => setTimeout(resolve, 20));
+  await sleep(20);
 
   assert.equal(closes(), 1);
   assert.equal(connection.closed, true);
 });
 
-test("reports a failing getToken without opening a socket", async (t) => {
-  const server = await fakeServer(t);
-  let connected = false;
-  void server.connection.then(() => (connected = true));
-  const { closes, closed } = connect({
-    server: server.url,
-    getToken: async () => {
+for (const [name, getToken] of [
+  [
+    "a failing getToken",
+    async () => {
       throw new Error("no token");
     },
+  ],
+  ["an empty token", async () => ""],
+] as const) {
+  test(`reports ${name} without opening a socket`, async (t) => {
+    const server = await fakeServer(t);
+    let connected = false;
+    void server.connection.then(() => (connected = true));
+    const { connection, closes, closed } = connect({
+      server: server.url,
+      getToken,
+    });
+
+    await closed;
+    await sleep(20);
+
+    assert.equal(closes(), 1);
+    assert.equal(connection.closed, true);
+    assert.equal(connected, false);
   });
-
-  await closed;
-  await new Promise((resolve) => setTimeout(resolve, 20));
-
-  assert.equal(closes(), 1);
-  assert.equal(connected, false);
-});
-
-test("reports an empty token without opening a socket", async (t) => {
-  const server = await fakeServer(t);
-  let connected = false;
-  void server.connection.then(() => (connected = true));
-  const { connection, closes, closed } = connect({
-    server: server.url,
-    getToken: async () => "",
-  });
-
-  await closed;
-  await new Promise((resolve) => setTimeout(resolve, 20));
-
-  assert.equal(closes(), 1);
-  assert.equal(connection.closed, true);
-  assert.equal(connected, false);
-});
+}
 
 test("reports a missing server", async () => {
   const { connection, closes, closed } = connect({ server: "" });
@@ -205,7 +198,7 @@ test("reports nothing when the client closes", async (t) => {
 
   connection.close();
   await serverClosed;
-  await new Promise((resolve) => setTimeout(resolve, 20));
+  await sleep(20);
 
   assert.equal(closes(), 0);
 });

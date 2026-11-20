@@ -154,21 +154,6 @@ test("shows the Send button only with text input", async ({ page }) => {
   ).toBeHidden();
 });
 
-test("lets the page style the Send button", async ({ page }) => {
-  await openPage(
-    page,
-    `<style>
-      dicta-input::part(send) { color: rgb(255, 0, 0); }
-    </style>
-    <dicta-input></dicta-input>`,
-  );
-
-  await expect(page.getByRole("button", { name: "Send" })).toHaveCSS(
-    "color",
-    "rgb(255, 0, 0)",
-  );
-});
-
 test("reaches the Send button by keyboard", async ({ page }) => {
   await openPage(page, '<dicta-input inputs="text"></dicta-input>');
   const field = page.getByRole("textbox");

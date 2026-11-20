@@ -87,51 +87,6 @@ test("shows only the listen modes with one submit mode", async ({ page }) => {
   await expect(page.getByRole("checkbox", REVIEW)).toBeHidden();
 });
 
-test("keeps the user's choice after a reload", async ({ page }) => {
-  await openPage(page, "<dicta-input></dicta-input>");
-  await openSettings(page);
-
-  await radio(page, "Hands-free").check();
-  await openPage(page, "<dicta-input></dicta-input>");
-  await openSettings(page);
-
-  await expect(radio(page, "Hands-free")).toBeChecked();
-});
-
-test("ignores a stored choice that is no longer allowed", async ({ page }) => {
-  await openPage(page, "<dicta-input></dicta-input>");
-  await openSettings(page);
-  await radio(page, "Hands-free").check();
-
-  await openPage(
-    page,
-    `<dicta-input id="hold" voice-listen-modes="hold"></dicta-input>
-     <dicta-input id="both" voice-listen-modes="hold toggle"></dicta-input>`,
-  );
-
-  // The radio group is hidden with one mode, but still shows the mode in use.
-  await expect(page.locator("#hold input[value=hold]")).toBeChecked();
-  await openSettings(page.locator("#both"));
-  await expect(radio(page.locator("#both"), "Hands-free")).toBeChecked();
-});
-
-test("keeps the choice for the page when storage fails", async ({ page }) => {
-  await openPage(page, "<dicta-input></dicta-input>");
-  await page.evaluate(() => {
-    Storage.prototype.setItem = () => {
-      throw new DOMException("full", "QuotaExceededError");
-    };
-  });
-  await openSettings(page);
-
-  await radio(page, "Hands-free").check();
-  await page.locator("dicta-input").evaluate((element) => {
-    element.setAttribute("label", "re-render");
-  });
-
-  await expect(radio(page, "Hands-free")).toBeChecked();
-});
-
 test("checks Review before sending by default", async ({ page }) => {
   await openPage(page, "<dicta-input></dicta-input>");
   await openSettings(page);
@@ -167,31 +122,76 @@ test("shows the review switch only with both modes and both inputs", async ({
   }
 });
 
-test("keeps the user's review choice after a reload", async ({ page }) => {
-  await openPage(page, "<dicta-input></dicta-input>");
-  await openSettings(page);
+// The listen mode and the review switch are both kept as the user's choice.
+const CHOICES = [
+  {
+    what: "choice",
+    choose: (page: Page) => radio(page, "Hands-free").check(),
+    chosen: (page: Page) => expect(radio(page, "Hands-free")).toBeChecked(),
+    notAllowed: `<dicta-input id="hold" voice-listen-modes="hold"></dicta-input>
+     <dicta-input id="both" voice-listen-modes="hold toggle"></dicta-input>`,
+    checkNotAllowed: async (page: Page) => {
+      // The radio group is hidden with one mode, but still shows the mode in
+      // use.
+      await expect(page.locator("#hold input[value=hold]")).toBeChecked();
+      await openSettings(page.locator("#both"));
+      await expect(radio(page.locator("#both"), "Hands-free")).toBeChecked();
+    },
+  },
+  {
+    what: "review choice",
+    choose: (page: Page) => page.getByRole("checkbox", REVIEW).uncheck(),
+    chosen: (page: Page) =>
+      expect(page.getByRole("checkbox", REVIEW)).not.toBeChecked(),
+    notAllowed: '<dicta-input voice-submit-modes="review"></dicta-input>',
+    checkNotAllowed: (page: Page) =>
+      expect(page.locator("dicta-input input[type=checkbox]")).toBeChecked(),
+  },
+];
 
-  await page.getByRole("checkbox", REVIEW).uncheck();
-  await openPage(page, "<dicta-input></dicta-input>");
-  await openSettings(page);
+for (const { what, choose, chosen, notAllowed, checkNotAllowed } of CHOICES) {
+  test(`keeps the user's ${what} after a reload`, async ({ page }) => {
+    await openPage(page, "<dicta-input></dicta-input>");
+    await openSettings(page);
 
-  await expect(page.getByRole("checkbox", REVIEW)).not.toBeChecked();
-});
+    await choose(page);
+    await openPage(page, "<dicta-input></dicta-input>");
+    await openSettings(page);
 
-test("ignores a stored review choice that is no longer allowed", async ({
-  page,
-}) => {
-  await openPage(page, "<dicta-input></dicta-input>");
-  await openSettings(page);
-  await page.getByRole("checkbox", REVIEW).uncheck();
+    await chosen(page);
+  });
 
-  await openPage(
+  test(`ignores a stored ${what} that is no longer allowed`, async ({
     page,
-    '<dicta-input voice-submit-modes="review"></dicta-input>',
-  );
+  }) => {
+    await openPage(page, "<dicta-input></dicta-input>");
+    await openSettings(page);
+    await choose(page);
 
-  await expect(page.locator("dicta-input input[type=checkbox]")).toBeChecked();
-});
+    await openPage(page, notAllowed);
+
+    await checkNotAllowed(page);
+  });
+
+  test(`keeps the ${what} for the page when storage fails`, async ({
+    page,
+  }) => {
+    await openPage(page, "<dicta-input></dicta-input>");
+    await page.evaluate(() => {
+      Storage.prototype.setItem = () => {
+        throw new DOMException("full", "QuotaExceededError");
+      };
+    });
+    await openSettings(page);
+
+    await choose(page);
+    await page.locator("dicta-input").evaluate((element) => {
+      element.setAttribute("label", "re-render");
+    });
+
+    await chosen(page);
+  });
+}
 
 test("lets the page style the settings", async ({ page }) => {
   await openPage(
@@ -217,25 +217,6 @@ test("lets the page style the settings", async ({ page }) => {
     "color",
     "rgb(255, 0, 0)",
   );
-});
-
-test("keeps the review choice for the page when storage fails", async ({
-  page,
-}) => {
-  await openPage(page, "<dicta-input></dicta-input>");
-  await page.evaluate(() => {
-    Storage.prototype.setItem = () => {
-      throw new DOMException("full", "QuotaExceededError");
-    };
-  });
-  await openSettings(page);
-
-  await page.getByRole("checkbox", REVIEW).uncheck();
-  await page.locator("dicta-input").evaluate((element) => {
-    element.setAttribute("label", "re-render");
-  });
-
-  await expect(page.getByRole("checkbox", REVIEW)).not.toBeChecked();
 });
 
 test("opens the panel under the arrow", async ({ page }) => {
