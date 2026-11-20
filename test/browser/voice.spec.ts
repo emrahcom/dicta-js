@@ -954,6 +954,35 @@ test("opens a new connection with the new lang after lang changes", async ({
   await expect.poll(() => server.connections[1]!.ends.length).toBe(1);
 });
 
+test("drops a final still awaited when lang changes, without a failure", async ({
+  page,
+}) => {
+  const button = await open(page, 'lang="de"');
+  await holdAndRelease(page, button);
+  await untilEnds(1);
+
+  // The first final never comes: the next press opens a new connection.
+  await page.locator("dicta-input").evaluate((element) => {
+    element.setAttribute("lang", "en");
+  });
+  await button.hover();
+  await page.mouse.down();
+  await expect
+    .poll(() => server.connections[1]?.frames ?? 0)
+    .toBeGreaterThan(5);
+  await page.mouse.up();
+  await expect.poll(() => server.connections[1]!.ends.length).toBe(1);
+  server.connections[1]!.socket.send(
+    JSON.stringify({ type: "transcript", text: "add a note", final: true }),
+  );
+  await expect(page.getByRole("status")).toHaveText("add a note");
+
+  // A normal close of the new connection is not a failure.
+  server.connections[1]!.socket.close(1000);
+  await expect.poll(() => isOpen(1)).toBe(false);
+  await expect(page.getByRole("status")).toHaveText("add a note");
+});
+
 test("opens a new connection on the press after an idle close", async ({
   page,
 }) => {

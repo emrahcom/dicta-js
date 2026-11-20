@@ -267,7 +267,15 @@ export class DictaInput extends HTMLElement {
     this.#reset();
     this.#setStatus("");
     clearTimeout(this.#closeTimer);
+    this.#closeConnection();
+  }
+
+  // Closes the connection from this side. A final still awaited on it never
+  // comes and is dropped, so a later close is not taken for a failure
+  // (specs/architecture.md, Connection).
+  #closeConnection() {
     this.#connection?.close();
+    this.#awaiting = 0;
   }
 
   attributeChangedCallback() {
@@ -425,7 +433,7 @@ export class DictaInput extends HTMLElement {
       this.#connectedTo?.server !== server ||
       this.#connectedTo.lang !== lang
     ) {
-      this.#connection?.close();
+      this.#closeConnection();
     }
     if (!this.#connection || this.#connection.closed) {
       this.#connectedTo = { server, lang };
@@ -511,7 +519,7 @@ export class DictaInput extends HTMLElement {
   #closeLater() {
     clearTimeout(this.#closeTimer);
     this.#closeTimer = setTimeout(
-      () => this.#connection?.close(),
+      () => this.#closeConnection(),
       IDLE_CONNECTION_MS,
     );
   }
